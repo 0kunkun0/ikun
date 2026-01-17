@@ -7,11 +7,12 @@
 
 **说明**:
 - 此仓库存放本人常用的C++头文件
-- 请使用git clone https://github.com/0kunkun0/ikun.git复制到工作区文件夹后
-- 在代码中使用#include "ikun/all_libs.hpp"
-- 具体内容请自己浏览代码(看不懂注释就用翻译吧, 本人没打算做英文版)
+- 请使用 `git clone https://github.com/0kunkun0/ikun.git` 复制到工作区文件夹后
+- 在代码中使用 `#include "ikun/all_libs.hpp"`
+- 具体内容请自己浏览代码
+---
+# Translation of the above content↑:
 
-Translation of the above content↑:
 **Note**:
 - This repository is created for personal storage and to conveniently share with others
 - For downloading and viewing code only
