@@ -43,6 +43,7 @@
 #ifndef MIN_HEADER_INCLUDE
 
 #include <fstream>
+#include <regex>
 #include <bitset>
 #include <sstream>
 #include <functional>
