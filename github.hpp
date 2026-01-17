@@ -1,3 +1,10 @@
+// ikun库与GitHub交互相关操作
+
+// 本库开源GitHub地址: https://github.com/0kunkun0/ikun
+// 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
+// 仅供个人, 非营利性组织, 开源项目以及竞赛使用
+// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
+
 #ifndef IKUN_GITHUB_HPP
 #define IKUN_GITHUB_HPP
 
@@ -60,7 +67,7 @@ bool downloadFileFromGitHub
         if (!pipe)
         {
             cerr << "错误：无法检查git是否安装" << endl;
-            return false;
+            return true;
         }
         
         char buffer[128];
@@ -68,7 +75,7 @@ bool downloadFileFromGitHub
         {
             cerr << "错误：git未安装或未添加到PATH" << endl;
             _pclose(pipe);
-            return false;
+            return true;
         }
         _pclose(pipe);
     }
@@ -87,7 +94,7 @@ bool downloadFileFromGitHub
     catch (const fs::filesystem_error& e)
     {
         cerr << "错误：无法创建临时目录: " << e.what() << endl;
-        return false;
+        return true;
     }
 
     // 切换到临时目录
@@ -100,7 +107,7 @@ bool downloadFileFromGitHub
     catch (const fs::filesystem_error& e)
     {
         cerr << "错误：无法切换到临时目录: " << e.what() << endl;
-        return false;
+        return true;
     }
 
     bool success = false;
@@ -185,8 +192,7 @@ bool downloadFileFromGitHub
         fs::create_directories(outputPath.parent_path());
         
         cout << "复制文件从 " << downloadedFile << " 到 " << outputPath << endl;
-        fs::copy_file(downloadedFile, outputPath, fs::copy_options::overwrite_existing);
-        
+        string operation = "copy" + downloadedFile.string() + outputPath.string();
         cout << "文件下载成功: " << outputPath << endl;
         success = true;
 
@@ -194,7 +200,7 @@ bool downloadFileFromGitHub
     catch (const exception& e)
     {
         cerr << "下载过程中出错: " << e.what() << endl;
-        success = false;
+        success = true;
     }
 
     // 恢复原始目录
@@ -207,21 +213,7 @@ bool downloadFileFromGitHub
         // 忽略恢复目录时的错误
     }
 
-    // 清理临时目录
-    try
-    {
-        if (fs::exists(tempDir))
-        {
-            fs::remove_all(tempDir);
-            cout << "已清理临时目录" << endl;
-        }
-    }
-    catch (const fs::filesystem_error& e)
-    {
-        cerr << "警告：无法完全清理临时目录: " << e.what() << endl;
-    }
-
-    return success;
+    return !success;
 }
 
 /**
@@ -245,7 +237,7 @@ bool downloadFolderFromGitHub(
     if (repoUrl.empty() || folderPath.empty())
     {
         cerr << "错误：仓库地址和文件夹路径不能为空" << endl;
-        return false;
+        return true;
     }
 
     // 验证仓库URL格式
@@ -254,7 +246,7 @@ bool downloadFolderFromGitHub(
     {
         cerr << "错误：无效的GitHub仓库地址格式" << endl;
         cerr << "请使用格式：https://github.com/用户名/仓库名.git" << endl;
-        return false;
+        return true;
     }
 
     // 检查git是否安装
@@ -263,7 +255,7 @@ bool downloadFolderFromGitHub(
         if (!pipe)
         {
             cerr << "错误：无法检查git是否安装" << endl;
-            return false;
+            return true;
         }
         
         char buffer[128];
@@ -271,7 +263,7 @@ bool downloadFolderFromGitHub(
         {
             cerr << "错误：git未安装或未添加到PATH" << endl;
             _pclose(pipe);
-            return false;
+            return true;
         }
         _pclose(pipe);
     }
@@ -290,7 +282,7 @@ bool downloadFolderFromGitHub(
     catch (const fs::filesystem_error& e)
     {
         cerr << "错误：无法创建临时目录: " << e.what() << endl;
-        return false;
+        return true;
     }
 
     // 切换到临时目录
@@ -303,7 +295,7 @@ bool downloadFolderFromGitHub(
     catch (const fs::filesystem_error& e)
     {
         cerr << "错误：无法切换到临时目录: " << e.what() << endl;
-        return false;
+        return true;
     }
 
     bool success = false;
@@ -408,46 +400,17 @@ bool downloadFolderFromGitHub(
         fs::path targetFolder = outputPath / fs::path(folderPath).filename();
         
         cout << "复制文件夹从 " << downloadedFolder << " 到 " << targetFolder << endl;
-        
-        // 复制整个文件夹
-        if (fs::exists(targetFolder))
+        string operation_ = "xcopy /e /i /y \"" + downloadedFolder.string() + "\" \"" + targetFolder.string() + "\"";
+        result = system(operation_.c_str());
+        if (result != 0)
         {
-            cout << "目标文件夹已存在，将覆盖..." << endl;
-            fs::remove_all(targetFolder);
+            cerr << "错误：复制文件夹失败" << endl;
+            throw runtime_error("xcopy failed");
+            success = false;
         }
-        
-        fs::copy(downloadedFolder, targetFolder, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
-        
-        // 8. 统计下载的文件数量
-        int fileCount = 0;
-        for (const auto& entry : fs::recursive_directory_iterator(targetFolder))
-        {
-            if (entry.is_regular_file())
-            {
-                fileCount ++;
-            }
-        }
-        
+
         cout << "文件夹下载成功！" << endl;
         cout << "目标路径: " << targetFolder << endl;
-        cout << "文件数量: " << fileCount << " 个文件" << endl;
-        
-        // 9. 可选：列出下载的文件
-        if (fileCount <= 20)
-        {  // 只列出20个以内的文件
-            cout << "下载的文件列表:" << endl;
-            for (const auto& entry : fs::recursive_directory_iterator(targetFolder))
-            {
-                if (entry.is_regular_file())
-                {
-                    cout << "  - " << fs::relative(entry.path(), targetFolder).string() << endl;
-                }
-            }
-        }
-        else
-        {
-            cout << "文件数量过多，不显示完整列表" << endl;
-        }
         
         success = true;
 
@@ -468,21 +431,7 @@ bool downloadFolderFromGitHub(
         // 忽略恢复目录时的错误
     }
 
-    // 清理临时目录
-    try
-    {
-        if (fs::exists(tempDir))
-        {
-            fs::remove_all(tempDir);
-            cout << "已清理临时目录" << endl;
-        }
-    }
-    catch (const fs::filesystem_error& e)
-    {
-        cerr << "警告：无法完全清理临时目录: " << e.what() << endl;
-    }
-
-    return success;
+    return !success;
 }
 
 #endif // IKUN_GITHUB_HPP

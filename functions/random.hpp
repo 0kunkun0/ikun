@@ -1,7 +1,10 @@
 // ikun库functions模块随机数库random.hpp
 // 提供基于mt19937算法的随机数生成器
+
+// 本库开源GitHub地址: https://github.com/0kunkun0/ikun
+// 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据许可证和用户协议规定, 禁止商业用途, 违者依法追究法律责任
+// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
 
 #ifndef IKUN_FUNCTIONS_RANDOM_HPP
 #define IKUN_FUNCTIONS_RANDOM_HPP

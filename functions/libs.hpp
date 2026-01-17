@@ -31,17 +31,75 @@ namespace libs
     {
         std::vector<std::string> files;
 
-        for (const auto & entry : std::filesystem::directory_iterator(path))
+        // 检查目录是否存在
+        if (!std::filesystem::exists(path))
         {
-            if (entry.is_regular_file())
+            std::cerr << "错误: 目录 '" << path << "' 不存在" << std::endl;
+            return files; // 返回空向量
+        }
+
+        // 检查是否是目录
+        if (!std::filesystem::is_directory(path))
+        {
+            std::cerr << "错误: '" << path << "' 不是目录" << std::endl;
+            return files;
+        }
+
+        // 确保文件扩展名以点开头
+        if (!fileextname.empty() && fileextname != ".")
+        {
+            if (fileextname[0] != '.')
             {
-                std::string filename = entry.path().filename().string();
-                int fextnl = fileextname.length();
-                if (filename.size() >= fextnl && filename.substr(filename.size() - fextnl) == fileextname)
+                fileextname = "." + fileextname; // 自动添加点
+            }
+        }
+
+        try
+        {
+            // 遍历目录
+            for (const auto &entry : std::filesystem::directory_iterator(path))
+            {
+                if (entry.is_regular_file())
                 {
-                    files.push_back(filename);
+                    std::string filename = entry.path().filename().string();
+                    
+                    // 根据 fileextname 参数进行过滤
+                    if (fileextname == ".") // 默认值，匹配所有文件
+                    {
+                        files.push_back(filename);
+                    }
+                    else if (fileextname.empty()) // 空字符串也匹配所有文件
+                    {
+                        files.push_back(filename);
+                    }
+                    else
+                    {
+                        // 6. 检查文件扩展名
+                        // 获取文件扩展名
+                        std::string ext = entry.path().extension().string();
+                        
+                        // 7. 比较扩展名(不区分大小写)
+                        if (!ext.empty() && 
+                            std::equal(ext.begin(), ext.end(), 
+                                    fileextname.begin(), fileextname.end(),
+                                    [](char a, char b) {
+                                        return std::tolower(a) == std::tolower(b);
+                                    }))
+                        {
+                            files.push_back(filename);
+                        }
+                    }
                 }
             }
+            std::sort(files.begin(), files.end());
+        }
+        catch (const std::filesystem::filesystem_error& e)
+        {
+            std::cerr << "文件系统错误: " << e.what() << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "错误: " << e.what() << std::endl;
         }
 
         return files;

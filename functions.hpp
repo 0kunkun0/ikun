@@ -1,7 +1,10 @@
 // ikun库functions.hpp
 // 包括大量实用函数, 如文件操作, 随机数生成, 数学计算等
 // 部分依赖文件操作和系统API的仅支持Windows
-// 此版本仅供个人, 开源以及竞赛使用, 商业用途请遵循许可证规定
+// 本库开源GitHub地址: https://github.com/0kunkun0/ikun
+// 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
+// 仅供个人, 非营利性组织, 开源项目以及竞赛使用
+// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
 
 #ifndef IKUN_FUNCTIONS_HPP
 #define IKUN_FUNCTIONS_HPP

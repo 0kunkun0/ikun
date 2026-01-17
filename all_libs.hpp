@@ -1,6 +1,6 @@
 // ikun库all_libs.hpp
 // 本文件为ikun库的整合文件, 包含了ikun库的所有头文件
-// 包括万能头文件stdc++lib.hpp, 实用函数库functions.hpp, 高精度整数运算high_precision_int.hpp, Windows API操作winapi_func.hpp, GitHub相关操作github.hpp等
+// 包括万能头文件stdc++lib.hpp, 实用函数库functions.hpp, 高精度整数运算high_precision_int.hpp, GitHub相关操作github.hpp等
 // 本库的所有头文件均为互相包含, 使用前请下载完整库, 并确保所有头文件在ikun文件夹下
 // 注意: 此头文件会自动包含所有命名空间, 如果不希望自动使用, 请定义IKUN_NONAMESPACE宏
 // 注意: 由于自C++17后, Windows API会和C++标准库命名冲突, 请定义IKUN_NONAMESPACE_STD宏
@@ -19,7 +19,6 @@
 #include "stdc++lib.hpp"
 #include "functions.hpp"
 #include "high_precision_digit.hpp"
-#include "winapi_func.hpp"
 #include "github.hpp"
 
 #ifndef IKUN_NONAMESPACE

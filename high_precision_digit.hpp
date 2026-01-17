@@ -1,10 +1,12 @@
 // ikun库high_precision_digit.hpp
 // 提供高精度整数类以及运算, 基于C++ STL实现
-// 通过#include "ikun/high_precision_digit.hpp"引入
 // 命名空间为high_precision_digit
 // 注意: 高精度运算某些情况下会导致性能问题, 请根据需要使用
+
+// 本库开源GitHub地址: https://github.com/0kunkun0/ikun
+// 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据许可证和用户协议规定, 禁止商业用途, 违者依法追究法律责任
+// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
 
 #ifndef IKUN_HIGH_PRECISION_DIGIT_HPP
 #define IKUN_HIGH_PRECISION_DIGIT_HPP
