@@ -11,12 +11,30 @@ from time import sleep
 ikun_path = getcwd()
 
 def download_file_from_github_simple(lib_name):
-    # 使用curl下载文件
     print(f"正在下载{lib_name}...")
     sleep(0.5)
-    system(f'curl -o "{lib_name}" "https://raw.githubusercontent.com/0kunkun0/ikun/refs/heads/main/{lib_name}"')
+    # 添加 -k 参数忽略证书检查，或使用 --ssl-no-revoke
+    command = f'curl -k -L -o "{lib_name}" "https://raw.githubusercontent.com/0kunkun0/ikun/refs/heads/main/{lib_name}"'
+    print(f'当前操作: {command}')
+    result = system(command)
+    if result != 0:
+        # 尝试备用方法
+        print(f"curl下载失败，尝试备用方法...")
+        # 可以尝试使用 Python 的 urllib 作为备用
+        try:
+            import urllib.request
+            url = f"https://raw.githubusercontent.com/0kunkun0/ikun/refs/heads/main/{lib_name}"
+            urllib.request.urlretrieve(url, lib_name)
+            print(f"备用方法下载成功: {lib_name}")
+        except:
+            print(f"所有下载方法都失败: {lib_name}")
+            return False
     print("正在检查中...")
-    system(f"type {lib_name} > nul")
+    # Windows 应该用 dir 而不是 type
+    result = system(f"dir {lib_name} > nul 2>&1" if name == 'nt' else f"ls {lib_name} > /dev/null 2>&1")
+    if result != 0:
+        print(f"警告: 文件 {lib_name} 可能未正确下载")
+    return True
 
 def init_lib_core():
     libs = {
@@ -56,7 +74,7 @@ def build():
     }
 
     if compiler in compilerargs:
-        compilerargs[compiler]
+        system(compilerargs[compiler])
     else:
         print("编译器名称错误")
         return 1
@@ -85,7 +103,16 @@ def main():
         elif choice == "2":
             build()
         elif choice == "3":
-            system("setx .\\")
+            current_path = getcwd()
+            print(f"当前路径: {current_path}")
+            print("注意: 在 Windows 上需要管理员权限才能设置系统环境变量")
+            choice = input("设置为用户环境变量(1)还是系统环境变量(2)? [1/2]: ")
+            if choice == "1":
+                system(f'setx PATH "%PATH%;{current_path}"')
+            elif choice == "2":
+                system(f'setx PATH "%PATH%;{current_path}" /M')
+            else:
+                print("无效选择")
         elif choice == "4":
             return 0
         else:
