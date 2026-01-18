@@ -14,6 +14,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
+#include <vector>
 
 namespace libs
 {

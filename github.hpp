@@ -1,4 +1,6 @@
 // ikun库与GitHub交互相关操作
+// ikun库主程序下载和更新库必要依赖项
+// 请勿修改其中任何内容, 否则可能导致ikun库管理器无法正常使用
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
@@ -8,8 +10,13 @@
 #ifndef IKUN_GITHUB_HPP
 #define IKUN_GITHUB_HPP
 
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 
 #include <string>
 #include <iostream>

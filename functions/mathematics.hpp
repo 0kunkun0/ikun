@@ -6,11 +6,6 @@
 #ifndef IKUN_FUNCTIONS_MATHEMATICS_HPP
 #define IKUN_FUNCTIONS_MATHEMATICS_HPP
 
-#ifndef IKUN_CORE
-    #error "请先使用#include "ikun/core.hpp"包含ikun库核心"
-    #error "否则无法使用版本管理功能"
-#endif // IKUN_CORE
-
 #include <cmath>
 #include <stdexcept>
 

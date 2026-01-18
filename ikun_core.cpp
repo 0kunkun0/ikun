@@ -10,20 +10,25 @@
 {workspace floder}/ 
 项目文件...
 /ikun
-    标准库:
-    all_libs.hpp // 包含所有库和命名空间
+    自带库:
     stdc++lib.hpp // 包含所有C++标准库
     core.hpp // 核心库, 包含版本信息
     ikun_core.cpp // 主程序的原代码
-    build.py // 编译脚本
+    build.bat // Windows下的编译脚本
+    build_lib.py // 管理脚本
+    github.hpp // GitHub相关操作
+
+    非自带库:
+    all_libs.hpp // 包含所有库和命名空间
     high_precision_digit.hpp // 高精度数字库
     functions.hpp // 函数库
-    github.hpp // GitHub相关操作
     /functions
         libs.hpp // 工具库, 命名空间libs
         mathematics.hpp // 数学库, 命名空间maths
         random.hpp // 随机库, 命名空间random
         times.hpp // 时间库, 命名空间times
+    
+    别的内容请访问 https://github.com/0kunkun0/ikun
 */
 
 #ifdef _MSC_VER // 判断编译器
@@ -46,7 +51,11 @@
     #endif
 #endif
 
-#include "all_libs.hpp"
+#include "stdc++lib.hpp"
+#include "core.hpp"
+#include "github.hpp"
+
+using namespace std;
 
 #ifndef IKUN_VERSION
     #define IKUN_VERSION "Unsupported"
@@ -76,6 +85,86 @@ string os_status =
 #endif
 ;
 
+vector<string> core_filedir(string path = ".", string fileextname = ".")
+{
+    vector<string> files;
+
+    // 检查目录是否存在
+    if (!filesystem::exists(path))
+    {
+        cerr << "错误: 目录 '" << path << "' 不存在" << endl;
+        return files; // 返回空向量
+    }
+    // 检查是否是目录
+    if (!filesystem::is_directory(path))
+    {
+        cerr << "错误: '" << path << "' 不是目录" << endl;
+        return files;
+        }
+    // 确保文件扩展名以点开头
+    if (!fileextname.empty() && fileextname != ".")
+    {
+        if (fileextname[0] != '.')
+        {
+            fileextname = "." + fileextname; // 自动添加点
+        }
+        }
+    try
+    {
+        // 遍历目录
+        for (const auto &entry : filesystem::directory_iterator(path))
+        {
+            if (entry.is_regular_file())
+            {
+                string filename = entry.path().filename().string();
+                
+                // 根据 fileextname 参数进行过滤
+                if (fileextname == ".") // 默认值，匹配所有文件
+                {
+                    files.push_back(filename);
+                }
+                else if (fileextname.empty()) // 空字符串也匹配所有文件
+                {
+                    files.push_back(filename);
+                }
+                else
+                {
+                    // 6. 检查文件扩展名
+                    // 获取文件扩展名
+                    string ext = entry.path().extension().string();
+                    
+                    // 7. 比较扩展名(不区分大小写)
+                    if (!ext.empty() && 
+                        equal(ext.begin(), ext.end(), 
+                                fileextname.begin(), fileextname.end(),
+                                [](char a, char b) {
+                                    return tolower(a) == tolower(b);
+                                }))
+                    {
+                        files.push_back(filename);
+                    }
+                }
+            }
+        }
+        sort(files.begin(), files.end());
+    }
+    catch (const filesystem::filesystem_error& e)
+    {
+        cerr << "文件系统错误: " << e.what() << endl;
+    }
+    catch (const exception& e)
+    {
+        cerr << "错误: " << e.what() << endl;
+    }
+
+    return files;
+}
+    
+bool core_fileexists(const string& filename) // 检查文件是否存在
+{
+    return filesystem::exists(filename); 
+}
+
 void version()
 {
     println("版本: {}", IKUN_VERSION);
@@ -93,18 +182,26 @@ void help()
     println("  -v, --version: 显示版本信息");
     println("  -h, --help: 显示帮助信息");
     println("  -l, --list: 列出所有可用的库");
+    println("  -li, --list-libs: 列出所有安装了的库");
     println("  -i, --install: 安装指定的库");
     println("  -ih, --install-header: 安装指定的头文件");
     println("  -u, --uninstall: 卸载指定的库/头文件");
     println("  -c, --check: 检查指定的库是否已安装");
+    println("  -ic, --install-core: 安装核心库");
     println("参数:");
     println("  库名: 指定要安装/卸载/检查的库的名称");
 }
 
-void list_libs()
+void core_list_libs()
 {
     // 访问作者GitHub
     system("start https://github.com/0kunkun0/ikun");
+}
+
+void list_installed_libs()
+{
+    println("已安装的库:");
+    core_filedir("./", ".hpp");
 }
 
 void install_header(string lib_name) // 从GitHub上下载单个头文件
@@ -112,9 +209,15 @@ void install_header(string lib_name) // 从GitHub上下载单个头文件
     println("从GitHub上下载库");
     println("库名: {}", lib_name);
     println("请保证库名正确");
+
+    ifstream file("libs_download_url.txt");
+    string url;
+    getline(file, url);
+    file.close();
+
     bool a = downloadFileFromGitHub
     (
-        "https://github.com/0kunkun0/ikun.git",
+        url,
         lib_name + ".hpp",
         "main",
         "./"
@@ -131,9 +234,15 @@ void install_lib(string lib_name) // 从GitHub上下载单个库
     println("从GitHub上下载库");
     println("库名: {}", lib_name);
     println("请保证库名正确");
+
+    ifstream file("libs_download_url.txt");
+    string url;
+    getline(file, url);
+    file.close();
+
     bool a = downloadFolderFromGitHub
     (
-        "https://github.com/0kunkun0/ikun.git",
+        url,
         lib_name,
         "main",
         "./",
@@ -159,14 +268,16 @@ void uninstall_lib(string lib_name)
     if ((lib_name == "core") || (lib_name == "functions")
     || (lib_name == "all_libs") || (lib_name == "stdc++lib")
     || (lib_name == "high_precision_digit") || (lib_name == "github")
-    || (lib_name == "github") || (lib_name == "test_high_precision_digit"))// 防误删逻辑
+    || (lib_name == "github") || (lib_name == "test_high_precision_digit")
+    || (lib_name == "build") || (lib_name == "build_lib"))// 防误删逻辑
     {
         println("关键错误: 无法卸载核心库");
         return;
     }
 
     println("库名: {}", lib_name);
-    println("请保证库名正确, 否则可能误删文件, 按下回车键继续");
+    println("请保证库名正确, 否则可能误删文件");
+    println("删除时不会经过回收站, 按下回车键继续");
     cin.ignore();
     string a = "del /S /F /Q " + lib_name + "\\";
     string b = "del /S /F /Q " + lib_name + ".hpp";
@@ -185,12 +296,21 @@ bool check_lib_install(string lib_name)
     {
         return true;
     }
-    return fileexists(lib_name + ".hpp");
+
+    return core_fileexists(lib_name + ".hpp");
 }
 
-int main(int argc, char* argv[])  // 修复：应该是 char* argv[]，而不是 char* *argv[]
+int main(int argc, char* argv[])
 {
     println("ikun库核心管理器");
+
+    if (!core_fileexists("libs_download_url.txt"))
+    {
+        ofstream file("libs_download_url.txt"); // 创建日志文件
+        file << "https://github.com/0kunkun0/ikun.git";
+        file.close();
+    }
+
     if (argc < 2)
     {
         println("关键错误: 未传递选项");
@@ -214,7 +334,12 @@ int main(int argc, char* argv[])  // 修复：应该是 char* argv[]，而不是
         }
         else if (arg == "-l" || arg == "--list")
         {
-            list_libs();
+            core_list_libs();
+            return 0;
+        }
+        else if (arg == "-li" || arg == "--list-libs")
+        {
+            list_installed_libs();
             return 0;
         }
         else if (arg == "-ih" || arg == "--install-header")
@@ -275,6 +400,11 @@ int main(int argc, char* argv[])  // 修复：应该是 char* argv[]，而不是
                 println("错误: 请指定要检查的库名");
                 return 1;
             }
+        }
+        else if (arg == "-ic" || arg == "--install-core")
+        {
+            install_header("core.hpp");
+            install_lib("functions");
         }
         else
         {
