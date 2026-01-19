@@ -1,6 +1,8 @@
 // ikun库high_precision_digit.hpp
 // 提供高精度整数类以及运算, 基于C++ STL实现
 // 命名空间为high_precision_digit
+// 建议在开发中使用namespace hpd = high_precision_digit;进行简写
+// 而非导入整个命名空间 (当然, 由于命名空间只有一个, 所以导入整个命名空间也不会有什么问题)
 // 注意: 高精度运算某些情况下会导致性能问题, 请根据需要使用
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
@@ -11,7 +13,7 @@
 #ifndef IKUN_HIGH_PRECISION_DIGIT_HPP
 #define IKUN_HIGH_PRECISION_DIGIT_HPP
 
-#include <iostream>
+#include <print>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -22,490 +24,7 @@
 
 namespace high_precision_digit
 {
-
-class bigint // 基本大数类, 使用动态数组存储数字
-{
-private:
-    std::vector<int> digits;  // 存储数字，低位在前
-    bool is_negative;    // 是否为负数
-    
-    // 移除前导零
-    void trim()
-    {
-        while (digits.size() > 1 && digits.back() == 0)
-        {
-            digits.pop_back();
-        }
-        if (digits.size() == 1 && digits[0] == 0)
-        {
-            is_negative = false;
-        }
-    }
-    
-    // 比较绝对值大小
-    int compare_abs(const bigint& other) const
-    {
-        if (digits.size() != other.digits.size())
-        {
-            return digits.size() > other.digits.size() ? 1 : -1;
-        }
-        for (int i = digits.size() - 1; i >= 0; -- i)
-        {
-            if (digits[i] != other.digits[i]) {
-                return digits[i] > other.digits[i] ? 1 : -1;
-            }
-        }
-        return 0;
-    }
-    
-    // 加法（假设两个数都是正数）
-    static bigint add_abs(const bigint& a, const bigint& b)
-    {
-        bigint result;
-        result.digits.clear();
-        
-        int carry = 0;
-        size_t max_len = std::max(a.digits.size(), b.digits.size());
-        
-        for (size_t i = 0; i < max_len || carry; ++ i)
-        {
-            int sum = carry;
-            if (i < a.digits.size()) sum += a.digits[i];
-            if (i < b.digits.size()) sum += b.digits[i];
-            result.digits.push_back(sum % 10);
-            carry = sum / 10;
-        }
-        
-        return result;
-    }
-    
-    // 减法（假设a的绝对值大于等于b的绝对值，且结果为正）
-    static bigint sub_abs(const bigint& a, const bigint& b)
-    {
-        bigint result;
-        result.digits.clear();
-        
-        int borrow = 0;
-        for (size_t i = 0; i < a.digits.size(); ++i)
-        {
-            int diff = a.digits[i] - borrow;
-            if (i < b.digits.size()) diff -= b.digits[i];
-            
-            if (diff < 0)
-            {
-                diff += 10;
-                borrow = 1;
-            }
-            else
-            {
-                borrow = 0;
-            }
-            result.digits.push_back(diff);
-        }
-        
-        result.trim();
-        return result;
-    }
-
-public:
-    // 构造函数
-    bigint() : is_negative(false)
-    {
-        digits.push_back(0);
-    }
-    
-    bigint(const std::string& s)
-    {
-        if (s.empty())
-        {
-            digits.push_back(0);
-            is_negative = false;
-            return;
-        }
-        
-        size_t start = 0;
-        is_negative = false;
-        
-        if (s[0] == '-')
-        {
-            is_negative = true;
-            start = 1;
-        } else if (s[0] == '+')
-        {
-            start = 1;
-        }
-        
-        // 跳过前导零
-        while (start < s.size() && s[start] == '0')
-        {
-            start ++;
-        }
-        
-        if (start == s.size())
-        {
-            digits.push_back(0);
-            is_negative = false;
-            return;
-        }
-        
-        for (int i = s.size() - 1; i >= static_cast<int>(start); -- i)
-        {
-            if (!isdigit(s[i]))
-            {
-                throw std::invalid_argument("Invalid character in number string");
-            }
-            digits.push_back(s[i] - '0');
-        }
-        
-        trim();
-    }
-    
-    bigint(long long n)
-    {
-        if (n == 0)
-        {
-            digits.push_back(0);
-            is_negative = false;
-            return;
-        }
-        
-        is_negative = n < 0;
-        n = std::abs(n);
-        
-        while (n > 0)
-        {
-            digits.push_back(n % 10);
-            n /= 10;
-        }
-    }
-    
-    // 转换为字符串
-    std::string to_string() const
-    {
-        if (digits.empty()) return "0";
-        
-        std::string result;
-        if (is_negative) result += '-';
-        
-        for (int i = digits.size() - 1; i >= 0; -- i)
-        {
-            result += char(digits[i] + '0');
-        }
-        
-        return result;
-    }
-    
-    // 算术运算符重载
-    bigint operator+(const bigint& other) const
-    {
-        // 同号相加
-        if (is_negative == other.is_negative)
-        {
-            bigint result = add_abs(*this, other);
-            result.is_negative = is_negative;
-            return result;
-        }
-        
-        // 异号相减
-        int cmp = compare_abs(other);
-        if (cmp == 0) return bigint(0);
-        
-        bigint result;
-        if (cmp > 0)
-        {
-            result = sub_abs(*this, other);
-            result.is_negative = is_negative;
-        }
-        else
-        {
-            result = sub_abs(other, *this);
-            result.is_negative = other.is_negative;
-        }
-        
-        return result;
-    }
-    
-    bigint operator-(const bigint& other) const
-    {
-        // 改变符号后相加
-        bigint temp = other;
-        temp.is_negative = !temp.is_negative;
-        return *this + temp;
-    }
-    
-    bigint operator*(const bigint& other) const
-    {
-        bigint result;
-        result.digits.resize(digits.size() + other.digits.size(), 0);
-        
-        for (size_t i = 0; i < digits.size(); ++i)
-        {
-            int carry = 0;
-            for (size_t j = 0; j < other.digits.size() || carry; ++ j)
-            {
-                long long cur = result.digits[i + j] + 
-                               digits[i] * (j < other.digits.size() ? other.digits[j] : 0) + 
-                               carry;
-                result.digits[i + j] = cur % 10;
-                carry = static_cast<int>(cur / 10);
-            }
-        }
-        
-        result.is_negative = is_negative != other.is_negative;
-        result.trim();
-        return result;
-    }
-    
-    bigint operator/(const bigint& other) const
-    {
-        if (other == bigint(0))
-        {
-            throw std::runtime_error("Division by zero");
-        }
-        
-        bigint a = *this;
-        bigint b = other;
-        a.is_negative = false;
-        b.is_negative = false;
-        
-        if (a < b) return bigint(0);
-        
-        bigint result;
-        bigint current;
-        result.digits.resize(a.digits.size());
-        
-        for (int i = a.digits.size() - 1; i >= 0; --i)
-        {
-            current.digits.insert(current.digits.begin(), a.digits[i]);
-            current.trim();
-            
-            int x = 0;
-            int left = 0, right = 10;
-            while (left <= right)
-            {
-                int mid = (left + right) / 2;
-                if (b * bigint(mid) <= current)
-                {
-                    x = mid;
-                    left = mid + 1;
-                }
-                else
-                {
-                    right = mid - 1;
-                }
-            }
-            
-            result.digits[i] = x;
-            current = current - b * bigint(x);
-        }
-        
-        result.is_negative = is_negative != other.is_negative;
-        result.trim();
-        return result;
-    }
-    
-    bigint operator%(const bigint& other) const
-    {
-        if (other == bigint(0))
-        {
-            throw std::runtime_error("Modulo by zero");
-        }
-        
-        bigint quotient = *this / other;
-        bigint result = *this - quotient * other;
-        
-        // 确保余数非负
-        if (result.is_negative)
-        {
-            result = result + other;
-        }
-        
-        return result;
-    }
-    
-    // 比较运算符重载
-    bool operator==(const bigint& other) const
-    {
-        return is_negative == other.is_negative && digits == other.digits;
-    }
-    
-    bool operator!=(const bigint& other) const
-    {
-        return !(*this == other);
-    }
-    
-    bool operator<(const bigint& other) const
-    {
-        if (is_negative != other.is_negative)
-        {
-            return is_negative;
-        }
-        
-        if (is_negative)
-        {
-            return compare_abs(other) > 0;
-        }
-        else
-        {
-            return compare_abs(other) < 0;
-        }
-    }
-    
-    bool operator<=(const bigint& other) const
-    {
-        return *this < other || *this == other;
-    }
-    
-    bool operator>(const bigint& other) const
-    {
-        return !(*this <= other);
-    }
-    
-    bool operator>=(const bigint& other) const
-    {
-        return !(*this < other);
-    }
-    
-    // 与整数类型的运算
-    bigint operator+(long long n) const
-    {
-        return *this + bigint(n);
-    }
-    
-    bigint operator-(long long n) const
-    {
-        return *this - bigint(n);
-    }
-    
-    bigint operator*(long long n) const
-    {
-        return *this * bigint(n);
-    }
-    
-    bigint operator/(long long n) const 
-    {
-        return *this / bigint(n);
-    }
-    
-    bigint operator%(long long n) const
-    {
-        return *this % bigint(n);
-    }
-    
-    // 友元函数，支持整数在左侧的运算
-    friend bigint operator+(long long n, const bigint& b)
-    {
-        return bigint(n) + b;
-    }
-    
-    friend bigint operator-(long long n, const bigint& b)
-    {
-        return bigint(n) - b;
-    }
-    
-    friend bigint operator*(long long n, const bigint& b)
-    {
-        return bigint(n) * b;
-    }
-    
-    friend bigint operator/(long long n, const bigint& b)
-    {
-        return bigint(n) / b;
-    }
-    
-    friend bigint operator%(long long n, const bigint& b)
-    {
-        return bigint(n) % b;
-    }
-    
-    // 重载cmath函数
-    friend bigint abs(const bigint& n)
-    {
-        bigint result = n;
-        result.is_negative = false;
-        return result;
-    }
-    
-    friend bigint pow(const bigint& base, int exponent)
-    {
-        if (exponent < 0)
-        {
-            throw std::runtime_error("Negative exponent not supported");
-        }
-        
-        if (exponent == 0) return bigint(1);
-        
-        bigint result(1);
-        bigint b = base;
-        int e = exponent;
-        
-        while (e > 0)
-        {
-            if (e & 1)
-            {
-                result = result * b;
-            }
-            b = b * b;
-            e >>= 1;
-        }
-        
-        return result;
-    }
-    
-    // 求平方根（整数部分）
-    friend bigint sqrt(const bigint& n)
-    {
-        if (n.is_negative)
-        {
-            throw std::runtime_error("Square root of negative number");
-        }
-        
-        if (n == bigint(0) || n == bigint(1)) return n;
-        
-        bigint left(1);
-        bigint right = n;
-        bigint result(1);
-        
-        while (left <= right)
-        {
-            bigint mid = (left + right) / 2;
-            bigint square = mid * mid;
-            
-            if (square == n) return mid;
-            
-            if (square < n)
-            {
-                left = mid + bigint(1);
-                result = mid;
-            }
-            else
-            {
-                right = mid - bigint(1);
-            }
-        }
-        
-        return result;
-    }
-};
-
-// 输出运算符重载
-std::ostream& operator<<(std::ostream& os, const bigint& n)
-{
-    os << n.to_string();
-    return os;
-}
-
-// 输入运算符重载
-std::istream& operator>>(std::istream& is, bigint& n)
-{
-    std::string s;
-    is >> s;
-    n = bigint(s);
-    return is;
-}
-
-#ifdef IKUN_EXPERIMENTAL // 启用实验性功能
-class bigint_opt // 性能更优的bigint类, 稳定性待验证
+class bigint // 大数库
 {
 private:
     static const int BASE = 1000000000;      // 10亿进制
@@ -527,14 +46,14 @@ private:
         }
     }
     
-    // 比较绝对值大小（不修改对象）
-    int compare_abs(const bigint_opt& other) const noexcept
+    // 比较绝对值大小
+    int compare_abs(const bigint& other) const noexcept
     {
         if (digits.size() != other.digits.size())
         {
             return digits.size() > other.digits.size() ? 1 : -1;
         }
-        for (int i = static_cast<int>(digits.size()) - 1; i >= 0; --i)
+        for (int i = static_cast<int>(digits.size()) - 1; i >= 0; -- i)
         {
             if (digits[i] != other.digits[i])
             {
@@ -544,15 +63,15 @@ private:
         return 0;
     }
     
-    // 加法辅助函数（假设两个数都是正数）
-    static void add_abs(const bigint_opt& a, const bigint_opt& b, bigint_opt& result) noexcept
+    // 加法辅助函数
+    static void add_abs(const bigint& a, const bigint& b, bigint& result) noexcept
     {
         result.digits.clear();
         int carry = 0;
         size_t max_len = std::max(a.digits.size(), b.digits.size());
         result.digits.reserve(max_len + 1);
         
-        for (size_t i = 0; i < max_len || carry; ++i)
+        for (size_t i = 0; i < max_len || carry; ++ i)
         {
             int sum = carry;
             if (i < a.digits.size()) sum += a.digits[i];
@@ -572,14 +91,13 @@ private:
         result.is_negative = false;
     }
     
-    // 减法辅助函数（假设a的绝对值大于等于b的绝对值）
-    static void sub_abs(const bigint_opt& a, const bigint_opt& b, bigint_opt& result) noexcept
+    static void sub_abs(const bigint& a, const bigint& b, bigint& result) noexcept
     {
         result.digits.clear();
         result.digits.reserve(a.digits.size());
         int borrow = 0;
         
-        for (size_t i = 0; i < a.digits.size(); ++i)
+        for (size_t i = 0; i < a.digits.size(); ++ i)
         {
             int diff = a.digits[i] - borrow;
             if (i < b.digits.size()) diff -= b.digits[i];
@@ -600,8 +118,8 @@ private:
         result.is_negative = false;
     }
     
-    // 优化的试商函数（使用双精度估算）
-    static int estimate_quotient_digit(const bigint_opt& a, const bigint_opt& b)
+    // 试商函数
+    static int eqd(const bigint& a, const bigint& b)
     {
         if (a.digits.size() < b.digits.size()) return 0;
         
@@ -630,10 +148,10 @@ private:
         size_t b_size = b.size();
         result.assign(a_size + b_size, 0);
         
-        for (size_t i = 0; i < a_size; ++i)
+        for (size_t i = 0; i < a_size; ++ i)
         {
             long long carry = 0;
-            for (size_t j = 0; j < b_size || carry; ++j)
+            for (size_t j = 0; j < b_size || carry; ++ j)
             {
                 long long cur = result[i + j] + carry;
                 if (j < b_size) cur += static_cast<long long>(a[i]) * b[j];
@@ -716,7 +234,7 @@ private:
         }
         
         // 处理进位
-        for (size_t i = 0; i < m; ++i)
+        for (size_t i = 0; i < m; ++ i)
         {
             if (a_sum[i] >= BASE)
             {
@@ -763,13 +281,13 @@ private:
         result.assign(result_size, 0);
         
         // 添加z0
-        for (size_t i = 0; i < z0.size(); ++i)
+        for (size_t i = 0; i < z0.size(); ++ i)
         {
             result[i] = z0[i];
         }
         
         // 添加z1 * BASE^m
-        for (size_t i = 0; i < z1.size(); ++i)
+        for (size_t i = 0; i < z1.size(); ++ i)
         {
             result[i + m] += z1[i];
             if (result[i + m] >= BASE)
@@ -799,13 +317,13 @@ private:
 
 public:
     // 构造函数
-    bigint_opt() : is_negative(false)
+    bigint() : is_negative(false)
     {
         digits.push_back(0);
     }
     
     // 从字符串构造（优化版）
-    bigint_opt(const std::string& s)
+    bigint(const std::string& s)
     {
         if (s.empty())
         {
@@ -831,7 +349,7 @@ public:
         // 跳过前导零
         while (start < s.size() && s[start] == '0')
         {
-            start++;
+            start ++;
         }
         
         if (start == s.size())
@@ -877,7 +395,7 @@ public:
     }
     
     // 从64位整数构造
-    bigint_opt(long long n)
+    bigint(long long n)
     {
         if (n == 0)
         {
@@ -896,15 +414,15 @@ public:
         }
     }
     
-    // 从vector构造（内部使用）
-    bigint_opt(std::vector<int>&& d, bool neg = false) noexcept
+    // 从vector构造
+    bigint(std::vector<int>&& d, bool neg = false) noexcept
         : digits(std::move(d)), is_negative(neg)
     {
         trim();
     }
     
     // 移动构造函数
-    bigint_opt(bigint_opt&& other) noexcept
+    bigint(bigint&& other) noexcept
         : digits(std::move(other.digits)), is_negative(other.is_negative)
     {
         other.digits = {0};
@@ -912,10 +430,10 @@ public:
     }
     
     // 复制构造函数
-    bigint_opt(const bigint_opt& other) = default;
+    bigint(const bigint& other) = default;
     
     // 移动赋值运算符
-    bigint_opt& operator=(bigint_opt&& other) noexcept
+    bigint& operator=(bigint&& other) noexcept
     {
         if (this != &other)
         {
@@ -928,9 +446,9 @@ public:
     }
     
     // 复制赋值运算符
-    bigint_opt& operator=(const bigint_opt& other) = default;
+    bigint& operator=(const bigint& other) = default;
     
-    // 转换为字符串（优化版）
+    // 转换为字符串
     std::string to_string() const
     {
         if (digits.empty()) return "0";
@@ -952,13 +470,13 @@ public:
         return result;
     }
     
-    // 算术运算符（优化版实现）
-    bigint_opt operator+(const bigint_opt& other) const
+    // 算术运算符
+    bigint operator+(const bigint& other) const
     {
         // 同号相加
         if (is_negative == other.is_negative)
         {
-            bigint_opt result;
+            bigint result;
             add_abs(*this, other, result);
             result.is_negative = is_negative;
             return result;
@@ -966,9 +484,9 @@ public:
         
         // 异号相减
         int cmp = compare_abs(other);
-        if (cmp == 0) return bigint_opt(0);
+        if (cmp == 0) return bigint(0);
         
-        bigint_opt result;
+        bigint result;
         if (cmp > 0)
         {
             sub_abs(*this, other, result);
@@ -983,38 +501,38 @@ public:
         return result;
     }
     
-    // 复合赋值运算符（提高性能）
-    bigint_opt& operator+=(const bigint_opt& other)
+    // 复合赋值运算符
+    bigint& operator+=(const bigint& other)
     {
         *this = *this + other;
         return *this;
     }
     
-    bigint_opt operator-(const bigint_opt& other) const
+    bigint operator-(const bigint& other) const
     {
         // 改变符号后相加
-        bigint_opt temp = other;
+        bigint temp = other;
         temp.is_negative = !temp.is_negative;
         return *this + temp;
     }
     
-    bigint_opt& operator-=(const bigint_opt& other)
+    bigint& operator-=(const bigint& other)
     {
         *this = *this - other;
         return *this;
     }
     
-    // 优化乘法（自动选择算法）
-    bigint_opt operator*(const bigint_opt& other) const
+    // 乘法(自动选择算法)
+    bigint operator*(const bigint& other) const
     {
-        bigint_opt result;
+        bigint result;
         result.is_negative = is_negative != other.is_negative;
         
-        // 如果有一个是0，直接返回0
+        // 如果有一个是0, 直接返回0
         if ((digits.size() == 1 && digits[0] == 0) || 
             (other.digits.size() == 1 && other.digits[0] == 0))
         {
-            return bigint_opt(0);
+            return bigint(0);
         }
         
         // 根据规模选择乘法算法
@@ -1033,52 +551,52 @@ public:
         return result;
     }
     
-    bigint_opt& operator*=(const bigint_opt& other)
+    bigint& operator*=(const bigint& other)
     {
         *this = *this * other;
         return *this;
     }
     
-    // 优化除法（改进的试商算法）
-    bigint_opt operator/(const bigint_opt& other) const
+    // 优化除法
+    bigint operator/(const bigint& other) const
     {
-        if (other == bigint_opt(0))
+        if (other == bigint(0))
         {
             throw std::runtime_error("Division by zero");
         }
         
-        bigint_opt a = *this;
-        bigint_opt b = other;
+        bigint a = *this;
+        bigint b = other;
         a.is_negative = false;
         b.is_negative = false;
         
-        if (a < b) return bigint_opt(0);
+        if (a < b) return bigint(0);
         
-        bigint_opt result;
-        bigint_opt current;
+        bigint result;
+        bigint current;
         result.is_negative = is_negative != other.is_negative;
         
         // 结果的最大位数
         result.digits.resize(a.digits.size() - b.digits.size() + 1, 0);
         
-        // 将除数左移，使其与被除数最高位对齐
+        // 将除数左移, 使其与被除数最高位对齐
         size_t shift = a.digits.size() - b.digits.size();
         std::vector<int> b_shifted(b.digits);
         b_shifted.insert(b_shifted.begin(), shift, 0);
         
-        bigint_opt divisor(std::move(b_shifted), false);
+        bigint divisor(std::move(b_shifted), false);
         
         for (int i = static_cast<int>(shift); i >= 0; --i)
         {
             // 估算商位
-            int q = estimate_quotient_digit(a, divisor);
+            int q = eqd(a, divisor);
             
             // 调整商位
-            bigint_opt product = divisor * bigint_opt(q);
+            bigint product = divisor * bigint(q);
             while (product > a)
             {
                 --q;
-                product = divisor * bigint_opt(q);
+                product = divisor * bigint(q);
             }
             
             result.digits[i] = q;
@@ -1095,21 +613,21 @@ public:
         return result;
     }
     
-    bigint_opt& operator/=(const bigint_opt& other)
+    bigint& operator/=(const bigint& other)
     {
         *this = *this / other;
         return *this;
     }
     
-    bigint_opt operator%(const bigint_opt& other) const
+    bigint operator%(const bigint& other) const
     {
-        if (other == bigint_opt(0))
+        if (other == bigint(0))
         {
             throw std::runtime_error("Modulo by zero");
         }
         
-        bigint_opt quotient = *this / other;
-        bigint_opt result = *this - quotient * other;
+        bigint quotient = *this / other;
+        bigint result = *this - quotient * other;
         
         // 确保余数非负
         if (result.is_negative)
@@ -1120,24 +638,24 @@ public:
         return result;
     }
     
-    bigint_opt& operator%=(const bigint_opt& other)
+    bigint& operator%=(const bigint& other)
     {
         *this = *this % other;
         return *this;
     }
     
     // 快速幂运算（使用移位优化）
-    bigint_opt pow(int exponent) const
+    bigint pow(int exponent) const
     {
         if (exponent < 0)
         {
             throw std::runtime_error("Negative exponent not supported for integers");
         }
         
-        if (exponent == 0) return bigint_opt(1);
+        if (exponent == 0) return bigint(1);
         
-        bigint_opt result(1);
-        bigint_opt base = *this;
+        bigint result(1);
+        bigint base = *this;
         
         while (exponent > 0)
         {
@@ -1153,17 +671,17 @@ public:
     }
     
     // 比较运算符（保持不变，已经足够高效）
-    bool operator==(const bigint_opt& other) const noexcept
+    bool operator==(const bigint& other) const noexcept
     {
         return is_negative == other.is_negative && digits == other.digits;
     }
     
-    bool operator!=(const bigint_opt& other) const noexcept
+    bool operator!=(const bigint& other) const noexcept
     {
         return !(*this == other);
     }
     
-    bool operator<(const bigint_opt& other) const noexcept
+    bool operator<(const bigint& other) const noexcept
     {
         if (is_negative != other.is_negative)
         {
@@ -1180,161 +698,161 @@ public:
         }
     }
     
-    bool operator<=(const bigint_opt& other) const noexcept
+    bool operator<=(const bigint& other) const noexcept
     {
         return *this < other || *this == other;
     }
     
-    bool operator>(const bigint_opt& other) const noexcept
+    bool operator>(const bigint& other) const noexcept
     {
         return !(*this <= other);
     }
     
-    bool operator>=(const bigint_opt& other) const noexcept
+    bool operator>=(const bigint& other) const noexcept
     {
         return !(*this < other);
     }
     
     // 前置和后置递增递减
-    bigint_opt& operator++()  // 前置++
+    bigint& operator++()  // 前置++
     {
-        *this += bigint_opt(1);
+        *this += bigint(1);
         return *this;
     }
     
-    bigint_opt operator++(int)  // 后置++
+    bigint operator++(int)  // 后置++
     {
-        bigint_opt temp = *this;
+        bigint temp = *this;
         ++(*this);
         return temp;
     }
     
-    bigint_opt& operator--()  // 前置--
+    bigint& operator--()  // 前置--
     {
-        *this -= bigint_opt(1);
+        *this -= bigint(1);
         return *this;
     }
     
-    bigint_opt operator--(int)  // 后置--
+    bigint operator--(int)  // 后置--
     {
-        bigint_opt temp = *this;
+        bigint temp = *this;
         --(*this);
         return temp;
     }
     
     // 位运算运算符（可选实现）
-    bigint_opt operator<<(int shift) const  // 左移相当于乘以2^shift
+    bigint operator<<(int shift) const  // 左移相当于乘以2^shift
     {
         if (shift < 0) return *this >> (-shift);
         
-        bigint_opt result = *this;
+        bigint result = *this;
         for (int i = 0; i < shift; ++i)
         {
-            result *= bigint_opt(2);
+            result *= bigint(2);
         }
         return result;
     }
     
-    bigint_opt operator>>(int shift) const  // 右移相当于除以2^shift
+    bigint operator>>(int shift) const  // 右移相当于除以2^shift
     {
         if (shift < 0) return *this << (-shift);
         
-        bigint_opt result = *this;
+        bigint result = *this;
         for (int i = 0; i < shift; ++i)
         {
-            result /= bigint_opt(2);
+            result /= bigint(2);
         }
         return result;
     }
     
     // 与整数类型的运算
-    bigint_opt operator+(long long n) const
+    bigint operator+(long long n) const
     {
-        return *this + bigint_opt(n);
+        return *this + bigint(n);
     }
     
-    bigint_opt operator-(long long n) const
+    bigint operator-(long long n) const
     {
-        return *this - bigint_opt(n);
+        return *this - bigint(n);
     }
     
-    bigint_opt operator*(long long n) const
+    bigint operator*(long long n) const
     {
-        return *this * bigint_opt(n);
+        return *this * bigint(n);
     }
     
-    bigint_opt operator/(long long n) const 
+    bigint operator/(long long n) const 
     {
-        return *this / bigint_opt(n);
+        return *this / bigint(n);
     }
     
-    bigint_opt operator%(long long n) const
+    bigint operator%(long long n) const
     {
-        return *this % bigint_opt(n);
+        return *this % bigint(n);
     }
     
     // 友元函数，支持整数在左侧的运算
-    friend bigint_opt operator+(long long n, const bigint_opt& b)
+    friend bigint operator+(long long n, const bigint& b)
     {
-        return bigint_opt(n) + b;
+        return bigint(n) + b;
     }
     
-    friend bigint_opt operator-(long long n, const bigint_opt& b)
+    friend bigint operator-(long long n, const bigint& b)
     {
-        return bigint_opt(n) - b;
+        return bigint(n) - b;
     }
     
-    friend bigint_opt operator*(long long n, const bigint_opt& b)
+    friend bigint operator*(long long n, const bigint& b)
     {
-        return bigint_opt(n) * b;
+        return bigint(n) * b;
     }
     
-    friend bigint_opt operator/(long long n, const bigint_opt& b)
+    friend bigint operator/(long long n, const bigint& b)
     {
-        return bigint_opt(n) / b;
+        return bigint(n) / b;
     }
     
-    friend bigint_opt operator%(long long n, const bigint_opt& b)
+    friend bigint operator%(long long n, const bigint& b)
     {
-        return bigint_opt(n) % b;
+        return bigint(n) % b;
     }
     
     // 数学函数
-    friend bigint_opt abs(const bigint_opt& n)
+    friend bigint abs(const bigint& n)
     {
-        bigint_opt result = n;
+        bigint result = n;
         result.is_negative = false;
         return result;
     }
     
-    friend bigint_opt sqrt(const bigint_opt& n)
+    friend bigint sqrt(const bigint& n)
     {
         if (n.is_negative)
         {
             throw std::runtime_error("Square root of negative number");
         }
         
-        if (n == bigint_opt(0) || n == bigint_opt(1)) return n;
+        if (n == bigint(0) || n == bigint(1)) return n;
         
-        bigint_opt left(1);
-        bigint_opt right = n;
-        bigint_opt result(1);
+        bigint left(1);
+        bigint right = n;
+        bigint result(1);
         
         while (left <= right)
         {
-            bigint_opt mid = (left + right) / 2;
-            bigint_opt square = mid * mid;
+            bigint mid = (left + right) / 2;
+            bigint square = mid * mid;
             
             if (square == n) return mid;
             
             if (square < n)
             {
-                left = mid + bigint_opt(1);
+                left = mid + bigint(1);
                 result = mid;
             }
             else
             {
-                right = mid - bigint_opt(1);
+                right = mid - bigint(1);
             }
         }
         
@@ -1371,7 +889,7 @@ public:
     }
     
     // 交换函数
-    void swap(bigint_opt& other) noexcept
+    void swap(bigint& other) noexcept
     {
         std::swap(digits, other.digits);
         std::swap(is_negative, other.is_negative);
@@ -1379,99 +897,43 @@ public:
 };
 
 // 输出运算符重载
-std::ostream& operator<<(std::ostream& os, const bigint_opt& n)
+std::ostream& operator<<(std::ostream& os, const bigint& n)
 {
     os << n.to_string();
     return os;
 }
 
 // 输入运算符重载
-std::istream& operator>>(std::istream& is, bigint_opt& n)
+std::istream& operator>>(std::istream& is, bigint& n)
 {
     std::string s;
     is >> s;
-    n = bigint_opt(s);
+    n = bigint(s);
     return is;
 }
-
-#endif
 }
 
 namespace maths
 {
-    high_precision_digit::bigint big_fac(int n) // 大数阶乘
+    using namespace high_precision_digit;
+    bigint big_fac(int n) // 大数阶乘
     {
-        high_precision_digit::bigint result(1);
+        bigint result(1);
         for (int i = 2; i <= n; ++ i)
         {
-            result = result * high_precision_digit::bigint(i);
+            result = result * bigint(i);
         }
         return result;
     }
 
-    #ifdef IKUN_EXPERIMENTAL
-    high_precision_digit::bigint_opt big_fac_opt(int n) // 优化版大数阶乘
+    bigint big_pow(bigint base, int exp) // 大数幂
     {
-        high_precision_digit::bigint_opt result(1);
-        for (int i = 2; i <= n; ++ i)
-        {
-            result = result * high_precision_digit::bigint_opt(i);
-        }
-        return result;
-    }
-    #endif
-
-    high_precision_digit::bigint big_pow(high_precision_digit::bigint base, int exp) // 大数幂
-    {
-        high_precision_digit::bigint result(1);
+        bigint result(1);
         for (int i = 0; i < exp; ++ i)
         {
             result = result * base;
         }
         return result;
     }
-
-    #ifdef IKUN_EXPERIMENTAL
-    high_precision_digit::bigint_opt big_pow_opt(high_precision_digit::bigint_opt base, int exp) // 优化版大数幂
-    {
-        high_precision_digit::bigint_opt result(1);
-        for (int i = 0; i < exp; ++ i)
-        {
-            result = result * base;
-        }
-        return result;
-    }
-    #endif
-}
-
-void test_hpd()
-{
-    system("color 0a");
-    std::cout << "本函数将调用库中自带的测试代码" << std::endl;
-    std::cout << "由于库中没有预编译的二进制文件, 此操作需要在PATH环境变量中有可用的编译器" << std::endl;
-    std::cout << "请输入编译需要的编译器(GCC:1/Clang:2/MSVC(VS Developer CMD):3):";
-    
-    int compiler;
-    std::cin >> compiler;
-
-    switch (compiler)
-    {
-        case 1:
-            system("g++.exe -std=c++17 -DIKUN_EXPERIMENTAL -Wall -Wextra -pedantic -O2 -o .\\ikun\\test.exe .\\ikun\\test_high_precision_digit.cpp");
-            break;
-        case 2:
-            system("clang++.exe -std=c++17 -DIKUN_EXPERIMENTAL -Wall -Wextra -pedantic -O2 -o .\\ikun\\test.exe .\\ikun\\test_high_precision_digit.cpp");
-            break;
-        case 3:
-            system("cl.exe /EHsc /W4 /O2 /DIKUN_EXPERIMENTAL .\\ikun\\test_high_precision_digit.cpp /std:c++17 /Fe:.\\ikun\\test.exe");
-            break;
-        default:
-            std::cout << "无效的编译器" << std::endl;
-        return;
-    }
-
-    system("color 07");
-    system(".\\ikun\\test.exe");
-    system("del .\\ikun\\test.exe");
 }
 #endif

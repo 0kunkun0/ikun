@@ -10,26 +10,19 @@
 {workspace floder}/ 
 项目文件...
 /ikun
-    自带库:
-    stdc++lib.hpp // 包含所有C++标准库
-    core.hpp // 核心库, 包含版本信息
+    自带内容:
     ikun_core.cpp // 主程序的原代码
     build.bat // Windows下的编译脚本
     build_lib.py // 管理脚本
-    github.hpp // GitHub相关操作
-
-    非自带库:
-    all_libs.hpp // 包含所有库和命名空间
-    high_precision_digit.hpp // 高精度数字库
-    functions.hpp // 函数库
-    /functions
-        libs.hpp // 工具库, 命名空间libs
-        mathematics.hpp // 数学库, 命名空间maths
-        random.hpp // 随机库, 命名空间random
-        times.hpp // 时间库, 命名空间times
     
     别的内容请访问 https://github.com/0kunkun0/ikun
+    或者查看库中的 说明.txt
 */
+
+#define IKUN_VERSION "7.1.1"
+#define IKUN_OS_PLATFORM "Windows x64"
+#define IKUN_CPP_VERSION_REQUIRED 202303L
+#define IKUN_LANGUAGE_PLATFORM "C++"
 
 #ifdef _MSC_VER // 判断编译器
     #define MSVC
@@ -39,27 +32,27 @@
     #define GCC
 #endif
 
-#if __cplusplus < IKUN_CPP_VERSION_REQUIRED
-    #ifdef MSVC
-        #error "请在编译时显式指定/std:c++23或在项目配置中指定C++23标准"
-    #elif defined(CLANG)
-        #error "请在编译时显式指定-std=c++23(clang-cl使用/std:c++23)"
-    #elif defined(GCC)
-        #error "请在编译时显式指定-std=c++23"
-    #else
-        #error "不支持的编译器"
-    #endif
-#endif
-
-#include "stdc++lib.hpp"
-#include "core.hpp"
-#include "github.hpp"
+#include <print>
+#include <regex>
+#include <iostream>
+#include <filesystem>
+#include <string>
+#include <vector>
+#include <fstream>
+#include <algorithm>
+#include <processthreadsapi.h>
 
 using namespace std;
+namespace fs = std::filesystem;
 
-#ifndef IKUN_VERSION
-    #define IKUN_VERSION "Unsupported"
-#endif
+inline namespace core_color
+{
+    constexpr const char* reset = "\033[0m";
+    constexpr const char* red = "\033[31m";
+    constexpr const char* green = "\033[32m";
+    constexpr const char* blue = "\033[34m";
+    constexpr const char* bold = "\033[1m";
+}
 
 string compiler_status = 
 #ifdef MSVC
@@ -85,223 +78,590 @@ string os_status =
 #endif
 ;
 
-vector<string> core_filedir(string path = ".", string fileextname = ".")
+namespace ikun_core_cpp_functions_do_not_use
 {
-    vector<string> files;
+    bool downloadFileFromGitHub
+    (
+        const string& repoUrl,
+        const string& filePath,
+        const string& branch = "main",
+        const string& outputDir = "."
+    )
+    {
+        // 验证参数
+        if (repoUrl.empty() || filePath.empty())
+        {
+            cerr << "错误：仓库地址和文件路径不能为空" << endl;
+            return false;
+        }
 
-    // 检查目录是否存在
-    if (!filesystem::exists(path))
-    {
-        cerr << "错误: 目录 '" << path << "' 不存在" << endl;
-        return files; // 返回空向量
-    }
-    // 检查是否是目录
-    if (!filesystem::is_directory(path))
-    {
-        cerr << "错误: '" << path << "' 不是目录" << endl;
-        return files;
-        }
-    // 确保文件扩展名以点开头
-    if (!fileextname.empty() && fileextname != ".")
-    {
-        if (fileextname[0] != '.')
+        // 验证仓库URL格式
+        regex urlRegex(R"(https?://github\.com/[^/]+/[^/]+(?:\.git)?)");
+        if (!regex_match(repoUrl, urlRegex))
         {
-            fileextname = "." + fileextname; // 自动添加点
+            cerr << "错误：无效的GitHub仓库地址格式" << endl;
+            cerr << "请使用格式：https://github.com/用户名/仓库名.git" << endl;
+            return false;
         }
-        }
-    try
-    {
-        // 遍历目录
-        for (const auto &entry : filesystem::directory_iterator(path))
+
+        // 检查git是否安装
         {
-            if (entry.is_regular_file())
+            FILE* pipe = _popen("git --version", "r");
+            if (!pipe)
             {
-                string filename = entry.path().filename().string();
-                
-                // 根据 fileextname 参数进行过滤
-                if (fileextname == ".") // 默认值，匹配所有文件
+                cerr << "错误：无法检查git是否安装" << endl;
+                return true;
+            }
+            
+            char buffer[128];
+            if (!fgets(buffer, sizeof(buffer), pipe))
+            {
+                cerr << "错误：git未安装或未添加到PATH" << endl;
+                _pclose(pipe);
+                return true;
+            }
+            _pclose(pipe);
+        }
+
+        // 创建临时目录
+        string tempDir = fs::temp_directory_path().string() + "\\github_download_" + to_string(GetCurrentProcessId());
+        
+        try
+        {
+            if (fs::exists(tempDir))
+            {
+                fs::remove_all(tempDir);
+            }
+            fs::create_directory(tempDir);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            cerr << "错误：无法创建临时目录: " << e.what() << endl;
+            return true;
+        }
+
+        // 切换到临时目录
+        string originalDir = fs::current_path().string();
+        
+        try
+        {
+            fs::current_path(tempDir);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            cerr << "错误：无法切换到临时目录: " << e.what() << endl;
+            return true;
+        }
+
+        bool success = false;
+        
+        try
+        {
+            // 1. 初始化Git仓库
+            string cmd = "git init";
+            cout << "执行: " << cmd << endl;
+            int result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：git init失败" << endl;
+                throw runtime_error("git init failed");
+            }
+
+            // 2. 添加远程仓库
+            cmd = "git remote add origin \"" + repoUrl + "\"";
+            cout << "执行: " << cmd << endl;
+            result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：添加远程仓库失败" << endl;
+                throw runtime_error("git remote add failed");
+            }
+
+            // 3. 启用稀疏检出
+            cmd = "git config core.sparseCheckout true";
+            cout << "执行: " << cmd << endl;
+            result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：启用稀疏检出失败" << endl;
+                throw runtime_error("git config failed");
+            }
+
+            // 4. 指定要下载的文件路径
+            string sparseCheckoutFile = ".git/info/sparse-checkout";
+            fs::path sparseCheckoutPath(sparseCheckoutFile);
+            
+            // 确保目录存在
+            fs::create_directories(sparseCheckoutPath.parent_path());
+            
+            // 写入要下载的文件路径
+            {
+                ofstream file(sparseCheckoutPath);
+                if (!file.is_open())
                 {
-                    files.push_back(filename);
+                    cerr << "错误：无法创建稀疏检出配置文件" << endl;
+                    throw runtime_error("无法创建稀疏检出文件");
                 }
-                else if (fileextname.empty()) // 空字符串也匹配所有文件
+                file << filePath << endl;
+            }
+
+            // 5. 拉取文件
+            cmd = "git pull origin " + branch;
+            cout << "执行: " << cmd << endl;
+            result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：拉取文件失败，请检查：" << endl;
+                cerr << "  1. 仓库地址是否正确" << endl;
+                cerr << "  2. 分支名称是否正确（当前分支: " << branch << "）" << endl;
+                cerr << "  3. 文件路径是否正确" << endl;
+                cerr << "  4. 网络连接是否正常" << endl;
+                throw runtime_error("git pull failed");
+            }
+
+            // 6. 检查文件是否成功下载
+            fs::path downloadedFile = tempDir + "\\" + filePath;
+            if (!fs::exists(downloadedFile))
+            {
+                cerr << "错误：文件下载后不存在: " << downloadedFile << endl;
+                cerr << "请检查文件路径是否正确: " << filePath << endl;
+                throw runtime_error("下载的文件不存在");
+            }
+
+            // 7. 复制文件到输出目录
+            fs::path outputPath = fs::path(outputDir) / fs::path(filePath).filename();
+            
+            // 确保输出目录存在
+            fs::create_directories(outputPath.parent_path());
+            
+            cout << "复制文件从 " << downloadedFile << " 到 " << outputPath << endl;
+            string operation = "xcopy" + downloadedFile.string() + outputPath.string();
+            cout << "文件下载成功: " << outputPath << endl;
+            success = true;
+
+        }
+        catch (const exception& e)
+        {
+            cerr << "下载过程中出错: " << e.what() << endl;
+            success = true;
+        }
+
+        // 恢复原始目录
+        try
+        {
+            fs::current_path(originalDir);
+        }
+        catch (...)
+        {
+            // 忽略恢复目录时的错误
+        }
+
+        return !success;
+    }
+
+    bool downloadFolderFromGitHub(
+        const string& repoUrl,
+        const string& folderPath,
+        const string& branch = "main",
+        const string& outputDir = ".",
+        bool recursive = true
+    )
+    {
+        // 检查git是否安装
+        {
+            int check_git = system("git --version");
+            if (check_git != 0)
+            {
+                cerr << "错误：无法检查git是否安装" << endl;
+                return true;
+            }
+        }
+
+        string tempDir = fs::temp_directory_path().string() + "\\github_download_folder_" + to_string(GetCurrentProcessId());
+        
+        try
+        {
+            if (fs::exists(tempDir))
+            {
+                fs::remove_all(tempDir);
+            }
+            fs::create_directory(tempDir);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            cerr << "错误：无法创建临时目录: " << e.what() << endl;
+            return true;
+        }
+
+        // 切换到临时目录
+        string originalDir = fs::current_path().string();
+        
+        try
+        {
+            fs::current_path(tempDir);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            cerr << "错误：无法切换到临时目录: " << e.what() << endl;
+            return true;
+        }
+
+        bool success = false;
+        
+        try
+        {
+            // 1. 初始化Git仓库
+            string cmd = "git init";
+            cout << "执行: " << cmd << endl;
+            int result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：git init失败" << endl;
+                throw runtime_error("git init failed");
+            }
+
+            // 2. 添加远程仓库
+            cmd = "git remote add origin \"" + repoUrl + "\"";
+            cout << "执行: " << cmd << endl;
+            result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：添加远程仓库失败" << endl;
+                throw runtime_error("git remote add failed");
+            }
+
+            // 3. 启用稀疏检出
+            cmd = "git config core.sparseCheckout true";
+            cout << "执行: " << cmd << endl;
+            result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：启用稀疏检出失败" << endl;
+                throw runtime_error("git config failed");
+            }
+
+            // 4. 指定要下载的文件夹路径
+            string sparseCheckoutFile = ".git/info/sparse-checkout";
+            fs::path sparseCheckoutPath(sparseCheckoutFile);
+            
+            // 确保目录存在
+            fs::create_directories(sparseCheckoutPath.parent_path());
+            
+            // 写入要下载的文件夹路径
+            {
+                ofstream file(sparseCheckoutPath);
+                if (!file.is_open())
                 {
-                    files.push_back(filename);
+                    cerr << "错误：无法创建稀疏检出配置文件" << endl;
+                    throw runtime_error("无法创建稀疏检出文件");
+                }
+                
+                if (recursive)
+                {
+                    // 递归模式：下载文件夹及其所有内容
+                    file << folderPath << "/*" << endl;
+                    file << folderPath << "/**/*" << endl;
                 }
                 else
                 {
-                    // 6. 检查文件扩展名
-                    // 获取文件扩展名
-                    string ext = entry.path().extension().string();
+                    // 非递归模式：只下载文件夹本身（Git实际上不会下载空文件夹）
+                    file << folderPath << "/" << endl;
+                }
+            }
+
+            // 5. 拉取文件
+            cmd = "git pull origin " + branch;
+            cout << "执行: " << cmd << endl;
+            result = system(cmd.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：拉取文件夹失败，请检查：" << endl;
+                cerr << "  1. 仓库地址是否正确" << endl;
+                cerr << "  2. 分支名称是否正确（当前分支: " << branch << "）" << endl;
+                cerr << "  3. 文件夹路径是否正确" << endl;
+                cerr << "  4. 网络连接是否正常" << endl;
+                cerr << "  5. 文件夹是否存在（Git不跟踪空文件夹）" << endl;
+                throw runtime_error("git pull failed");
+            }
+
+            // 6. 检查文件夹是否成功下载
+            fs::path downloadedFolder = tempDir + "\\" + folderPath;
+            if (!fs::exists(downloadedFolder))
+            {
+                cerr << "错误：文件夹下载后不存在: " << downloadedFolder << endl;
+                cerr << "请检查：" << endl;
+                cerr << "  1. 文件夹路径是否正确: " << folderPath << endl;
+                cerr << "  2. 文件夹是否为空（Git不跟踪空文件夹）" << endl;
+                throw runtime_error("下载的文件夹不存在");
+            }
+
+            // 7. 复制文件夹到输出目录
+            fs::path outputPath = fs::path(outputDir);
+            
+            // 如果输出目录不存在，创建它
+            if (!fs::exists(outputPath))
+            {
+                fs::create_directories(outputPath);
+            }
+            
+            // 计算目标文件夹路径
+            fs::path targetFolder = outputPath / fs::path(folderPath).filename();
+            
+            cout << "复制文件夹从 " << downloadedFolder << " 到 " << targetFolder << endl;
+            string operation_ = "xcopy /e /i /y \"" + downloadedFolder.string() + "\" \"" + targetFolder.string() + "\"";
+            result = system(operation_.c_str());
+            if (result != 0)
+            {
+                cerr << "错误：复制文件夹失败" << endl;
+                throw runtime_error("xcopy failed");
+                success = false;
+            }
+
+            cout << "文件夹下载成功！" << endl;
+            cout << "目标路径: " << targetFolder << endl;
+            
+            success = true;
+
+        }
+        catch (const exception& e)
+        {
+            cerr << "下载过程中出错: " << e.what() << endl;
+            success = false;
+        }
+
+        // 恢复原始目录
+        try
+        {
+            fs::current_path(originalDir);
+        }
+        catch (...)
+        {
+            // 忽略恢复目录时的错误
+        }
+
+        return !success;
+    }
+
+
+    vector<string> core_filedir(string path = ".", string fileextname = ".")
+    {
+        vector<string> files;
+
+        // 检查目录是否存在
+        if (!filesystem::exists(path))
+        {
+            cerr << "错误: 目录 '" << path << "' 不存在" << endl;
+            return files; // 返回空向量
+        }
+        // 检查是否是目录
+        if (!filesystem::is_directory(path))
+        {
+            cerr << "错误: '" << path << "' 不是目录" << endl;
+            return files;
+            }
+        // 确保文件扩展名以点开头
+        if (!fileextname.empty() && fileextname != ".")
+        {
+            if (fileextname[0] != '.')
+            {
+                fileextname = "." + fileextname; // 自动添加点
+            }
+            }
+        try
+        {
+            // 遍历目录
+            for (const auto &entry : filesystem::directory_iterator(path))
+            {
+                if (entry.is_regular_file())
+                {
+                    string filename = entry.path().filename().string();
                     
-                    // 7. 比较扩展名(不区分大小写)
-                    if (!ext.empty() && 
-                        equal(ext.begin(), ext.end(), 
-                                fileextname.begin(), fileextname.end(),
-                                [](char a, char b) {
-                                    return tolower(a) == tolower(b);
-                                }))
+                    // 根据 fileextname 参数进行过滤
+                    if (fileextname == ".") // 默认值，匹配所有文件
                     {
                         files.push_back(filename);
                     }
+                    else if (fileextname.empty()) // 空字符串也匹配所有文件
+                    {
+                        files.push_back(filename);
+                    }
+                    else
+                    {
+                        // 6. 检查文件扩展名
+                        // 获取文件扩展名
+                        string ext = entry.path().extension().string();
+                        
+                        // 7. 比较扩展名(不区分大小写)
+                        if (!ext.empty() && 
+                            equal(ext.begin(), ext.end(), 
+                                    fileextname.begin(), fileextname.end(),
+                                    [](char a, char b) {
+                                        return tolower(a) == tolower(b);
+                                    }))
+                        {
+                            files.push_back(filename);
+                        }
+                    }
                 }
             }
+            sort(files.begin(), files.end());
         }
-        sort(files.begin(), files.end());
+        catch (const filesystem::filesystem_error& e)
+        {
+            cerr << "文件系统错误: " << e.what() << endl;
+        }
+        catch (const exception& e)
+        {
+            cerr << "错误: " << e.what() << endl;
+        }
+
+        return files;
     }
-    catch (const filesystem::filesystem_error& e)
+        
+    bool core_fileexists(const string& filename) // 检查文件是否存在
     {
-        cerr << "文件系统错误: " << e.what() << endl;
+        return filesystem::exists(filename); 
     }
-    catch (const exception& e)
+
+    void version()
     {
-        cerr << "错误: " << e.what() << endl;
+        println("版本: {}", IKUN_VERSION);
+        println("编译时使用的编译器: {}", compiler_status);
+        println("操作系统: {}", os_status);
+        println("编程语言: 编译时使用{}", IKUN_LANGUAGE_PLATFORM);
+        println("- 语言扩展: 编译时使用的C++标准: {}", __cplusplus);
     }
 
-    return files;
-}
-    
-bool core_fileexists(const string& filename) // 检查文件是否存在
-{
-    return filesystem::exists(filename); 
-}
-
-void version()
-{
-    println("版本: {}", IKUN_VERSION);
-    println("编译时使用的编译器: {}", compiler_status);
-    println("操作系统: {}", os_status);
-    println("编程语言: 编译时使用{}", IKUN_LANGUAGE_PLATFORM);
-    println("- 语言扩展: 编译时使用的C++标准: {}", __cplusplus);
-}
-
-void help()
-{
-    println("使用方法: ikun [选项] [参数]");
-    println("使用本库时请保证电脑有一个可正常连接GitHub的网络和Git");
-    println("选项:");
-    println("  -v, --version: 显示版本信息");
-    println("  -h, --help: 显示帮助信息");
-    println("  -l, --list: 列出所有可用的库");
-    println("  -li, --list-libs: 列出所有安装了的库");
-    println("  -i, --install: 安装指定的库");
-    println("  -ih, --install-header: 安装指定的头文件");
-    println("  -u, --uninstall: 卸载指定的库/头文件");
-    println("  -c, --check: 检查指定的库是否已安装");
-    println("  -ic, --install-core: 安装核心库");
-    println("参数:");
-    println("  库名: 指定要安装/卸载/检查的库的名称");
-}
-
-void core_list_libs()
-{
-    // 访问作者GitHub
-    system("start https://github.com/0kunkun0/ikun");
-}
-
-void list_installed_libs()
-{
-    println("已安装的库:");
-    core_filedir("./", ".hpp");
-}
-
-void install_header(string lib_name) // 从GitHub上下载单个头文件
-{
-    println("从GitHub上下载库");
-    println("库名: {}", lib_name);
-    println("请保证库名正确");
-
-    ifstream file("libs_download_url.txt");
-    string url;
-    getline(file, url);
-    file.close();
-
-    bool a = downloadFileFromGitHub
-    (
-        url,
-        lib_name + ".hpp",
-        "main",
-        "./"
-    );
-    if (a)
+    void help()
     {
-        println("下载失败");
-        return;
+        println("使用方法: ikun [选项] [参数]");
+        println("使用本库时请保证电脑有一个可正常连接GitHub的网络和Git");
+        println("选项:");
+        println("  -v, --version: 显示版本信息");
+        println("  -h, --help: 显示帮助信息");
+        println("  -l, --list: 列出所有可用的库");
+        println("  -li, --list-libs: 列出所有安装了的库");
+        println("  -i, --install: 安装指定的库");
+        println("  -ih, --install-header: 安装指定的头文件");
+        println("  -u, --uninstall: 卸载指定的库/头文件");
+        println("  -c, --check: 检查指定的库是否已安装");
+        println("  -ic, --install-core: 安装核心库");
+        println("参数:");
+        println("  库名: 指定要安装/卸载/检查的库的名称");
     }
-}
 
-void install_lib(string lib_name) // 从GitHub上下载单个库
-{
-    println("从GitHub上下载库");
-    println("库名: {}", lib_name);
-    println("请保证库名正确");
-
-    ifstream file("libs_download_url.txt");
-    string url;
-    getline(file, url);
-    file.close();
-
-    bool a = downloadFolderFromGitHub
-    (
-        url,
-        lib_name,
-        "main",
-        "./",
-        true
-    );
-    bool b = downloadFileFromGitHub
-    (
-        "https://github.com/0kunkun0/ikun.git",
-        lib_name + ".hpp",
-        "main",
-        "./"
-    );
-    if (a || b)
+    void core_list_libs()
     {
-        println("下载失败");
-        return;
+        // 访问作者GitHub
+        system("start https://github.com/0kunkun0/ikun");
     }
-}
 
-void uninstall_lib(string lib_name)
-{
-    println("卸载库");
-    if ((lib_name == "core") || (lib_name == "functions")
-    || (lib_name == "all_libs") || (lib_name == "stdc++lib")
-    || (lib_name == "high_precision_digit") || (lib_name == "github")
-    || (lib_name == "github") || (lib_name == "test_high_precision_digit")
-    || (lib_name == "build") || (lib_name == "build_lib"))// 防误删逻辑
+    void list_installed_libs()
     {
-        println("关键错误: 无法卸载核心库");
-        return;
+        println("已安装的库:");
+        core_filedir("./", ".hpp");
     }
 
-    println("库名: {}", lib_name);
-    println("请保证库名正确, 否则可能误删文件");
-    println("删除时不会经过回收站, 按下回车键继续");
-    cin.ignore();
-    string a = "del /S /F /Q " + lib_name + "\\";
-    string b = "del /S /F /Q " + lib_name + ".hpp";
-    string c = "rmdir /S /Q " + lib_name;
-    system(a.c_str());
-    system(b.c_str());
-    system(c.c_str());
-}
-
-bool check_lib_install(string lib_name)
-{
-    if ((lib_name == "core") || (lib_name == "functions")
-    || (lib_name == "all_libs") || (lib_name == "stdc++lib")
-    || (lib_name == "high_precision_digit") || (lib_name == "github")
-    || (lib_name == "github") || (lib_name == "test_high_precision_digit")) // 防止额外开销
+    void install_header(string lib_name) // 从GitHub上下载单个头文件
     {
-        return true;
+        println("从GitHub上下载库");
+        println("库名: {}", lib_name);
+        println("请保证库名正确");
+
+        ifstream file("libs_download_url.txt");
+        string url;
+        getline(file, url);
+        file.close();
+
+        bool a = downloadFileFromGitHub
+        (
+            url,
+            lib_name + ".hpp",
+            "main",
+            "./"
+        );
+        if (a)
+        {
+            println("下载失败");
+            return;
+        }
     }
 
-    return core_fileexists(lib_name + ".hpp");
+    void install_lib(string lib_name) // 从GitHub上下载单个库
+    {
+        println("从GitHub上下载库");
+        println("库名: {}", lib_name);
+        println("请保证库名正确");
+
+        ifstream file("libs_download_url.txt");
+        string url;
+        getline(file, url);
+        file.close();
+
+        bool a = downloadFolderFromGitHub
+        (
+            url,
+            lib_name,
+            "main",
+            "./",
+            true
+        );
+        bool b = downloadFileFromGitHub
+        (
+            "https://github.com/0kunkun0/ikun.git",
+            lib_name + ".hpp",
+            "main",
+            "./"
+        );
+        if (a || b)
+        {
+            println("下载失败");
+            return;
+        }
+    }
+
+    void uninstall_lib(string lib_name)
+    {
+        println("卸载库");
+        if ((lib_name == "core") || (lib_name == "functions")
+        || (lib_name == "all_libs") || (lib_name == "stdc++lib")
+        || (lib_name == "high_precision_digit") || (lib_name == "github")
+        || (lib_name == "github") || (lib_name == "test_high_precision_digit")
+        || (lib_name == "build") || (lib_name == "build_lib"))// 防误删逻辑
+        {
+            println("{}关键错误: 无法卸载核心库{}", core_color::red, core_color::reset);
+            return;
+        }
+
+        println("库名: {}", lib_name);
+        println("{}请保证库名正确, 否则可能误删文件", core_color::red);
+        println("删除时不会经过回收站, 按下回车键继续{}", core_color::reset);
+        cin.ignore();
+        string a = "del /S /F /Q " + lib_name + "\\";
+        string b = "del /S /F /Q " + lib_name + ".hpp";
+        string c = "rmdir /S /Q " + lib_name;
+        system(a.c_str());
+        system(b.c_str());
+        system(c.c_str());
+    }
+
+    bool check_lib_install(string lib_name)
+    {
+        if ((lib_name == "core") || (lib_name == "functions")
+        || (lib_name == "all_libs") || (lib_name == "stdc++lib")
+        || (lib_name == "high_precision_digit") || (lib_name == "github")
+        || (lib_name == "github") || (lib_name == "test_high_precision_digit")) // 防止额外开销
+        {
+            return true;
+        }
+
+        return core_fileexists(lib_name + ".hpp");
+    }
 }
 
 int main(int argc, char* argv[])
 {
+    using namespace ikun_core_cpp_functions_do_not_use;
     println("ikun库核心管理器");
 
     if (!core_fileexists("libs_download_url.txt"))
@@ -313,7 +673,7 @@ int main(int argc, char* argv[])
 
     if (argc < 2)
     {
-        println("关键错误: 未传递选项");
+        println("{}关键错误: 未传递选项{}", core_color::red, core_color::reset);
         help();
         return 1;
     }
@@ -351,7 +711,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                println("错误: 请指定要安装的头文件名");
+                println("{}错误: 请指定要安装的头文件名{}", core_color::red, core_color::reset);
                 return 1;
             }
         }
@@ -364,7 +724,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                println("错误: 请指定要安装的库名");
+                println("{}错误: 请指定要安装的库名{}", core_color::red, core_color::reset);
                 return 1;
             }
         }
@@ -377,7 +737,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                println("错误: 请指定要卸载的库名");
+                println("{}错误: 请指定要卸载的库名{}", core_color::red, core_color::reset);
                 return 1;
             }
         }
@@ -397,18 +757,18 @@ int main(int argc, char* argv[])
             }
             else
             {
-                println("错误: 请指定要检查的库名");
+                println("{}错误: 请指定要检查的库名{}", core_color::red, core_color::reset);
                 return 1;
             }
         }
         else if (arg == "-ic" || arg == "--install-core")
         {
-            install_header("core.hpp");
-            install_lib("functions");
+            install_header("core");
+            install_header("functions");
         }
         else
         {
-            println("未知选项: {}", arg);
+            println("{}关键错误: 未知选项: {}{}", arg, core_color::red, core_color::reset);
             help();
             return 1;
         }

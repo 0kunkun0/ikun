@@ -1,0 +1,23 @@
+./(你的工作区路径)
+你的项目文件...
+ikun/
+    ikun_core.hpp   // ikun.exe原代码
+    build.bat       // 构建库的批处理文件
+    build_lib.py    // 构建库的脚本(不建议直接使用而是通过build.bat检查环境再使用)
+    ikun.exe        // 通过build*.*构建 (通常不建议下载预构建版本)
+
+推荐的一些库:
+    functions.hpp   // 一些实用函数
+    all_libs.hpp    // 包含所有库的头文件
+    github.hpp      // GitHub相关功能
+    high_precision_digit.hpp
+                    // 高精度数字相关功能
+    stdc++lib.hpp   // 完整的C++标准库
+    console_color.hpp
+                    // 控制台颜色
+
+C++标准库高性能实现:
+    print.hpp       // (兼容C++20) print库高性能实现
+
+其它详见ikun库GitHub仓库:
+    https://github.com/0kunkun0/ikun

@@ -1,6 +1,6 @@
 // ikun库all_libs.hpp
-// 本文件为ikun库的整合文件, 包含了ikun库的所有头文件
-// 包括万能头文件stdc++lib.hpp, 实用函数库functions.hpp, 高精度整数运算high_precision_int.hpp, GitHub相关操作github.hpp等
+// 本文件为ikun库的整合文件, 包含了ikun库的所有自带头文件
+// 包括万能头文件stdc++lib.hpp, 实用函数库functions.hpp
 // 本库的所有头文件均为互相包含, 使用前请下载完整库, 并确保所有头文件在ikun文件夹下
 // 注意: 此头文件会自动包含所有命名空间, 如果不希望自动使用, 请定义IKUN_NONAMESPACE宏
 // 注意: 由于自C++17后, Windows API会和C++标准库命名冲突, 请定义IKUN_NONAMESPACE_STD宏
@@ -15,11 +15,29 @@
 #define IKUN_ALL_LIBS_HPP
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 
-#include "core.hpp"
+#if __has_include ("stdc++lib.hpp")
 #include "stdc++lib.hpp"
+#endif
+
+#if __has_include ("functions.hpp")
 #include "functions.hpp"
+#endif
+
+#if __has_include ("high_precision_digit.hpp")
 #include "high_precision_digit.hpp"
+#endif
+
+#if __has_include ("github.hpp")
 #include "github.hpp"
+#endif
+
+#if __has_include ("print.hpp") // 不是C++标准库别理解错了
+#include "print.hpp"
+#endif
+
+#if __has_include ("console_color.hpp")
+#include "console_color.hpp"
+#endif
 
 #ifndef IKUN_NONAMESPACE
 
@@ -39,11 +57,25 @@ using namespace std::this_thread; // C++ 标准库
 using namespace std::filesystem; // C++ 标准库
 #endif
 
-using namespace libs; // functions/libs.hpp
-using namespace maths; // functions/mathematics.hpp
-using namespace times; // functions/times.hpp
-using namespace random; // functions/random.hpp
+#ifdef IKUN_HIGH_PRECISION_DIGIT_HPP
 using namespace high_precision_digit; // high_precision_digit.hpp
-#endif // _IKUN_NONAMESPACE
+#endif
+
+#ifdef IKUN_FUNCTIONS_HPP
+using namespace libs; // functions.hpp
+using namespace maths; // functions.hpp
+using namespace times; // functions.hpp
+using namespace random; // functions.hpp
+#endif
+
+#ifdef IKUN_CONSOLE_COLOR_HPP
+using namespace color; // console_color.hpp
+#endif
+
+#ifdef IKUN_HIGH_PRECISION_DIGIT_HPP
+using namespace high_precision_digit; // high_precision_digit.hpp
+#endif
+
+#endif // IKUN_NONAMESPACE
 
 #endif // ALL_LIBS_HPP

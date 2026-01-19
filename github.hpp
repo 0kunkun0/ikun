@@ -199,7 +199,7 @@ bool downloadFileFromGitHub
         fs::create_directories(outputPath.parent_path());
         
         cout << "复制文件从 " << downloadedFile << " 到 " << outputPath << endl;
-        string operation = "copy" + downloadedFile.string() + outputPath.string();
+        string operation = "xcopy" + downloadedFile.string() + outputPath.string();
         cout << "文件下载成功: " << outputPath << endl;
         success = true;
 
