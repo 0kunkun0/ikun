@@ -1,4 +1,9 @@
 // ikun库主程序, 用于管理库的功能
+// 操作系统要求: Windows 10 x64, macOS Catalina 10.15+, Linux内核5.10+
+// 终端要求(ANSI转义序列): 
+//     Windows: Windows Terminal/PowerShell 5.1+, cmd.exe默认不支持
+//     macOS: 所有
+//     Linux: 所有
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
@@ -11,17 +16,22 @@
 项目文件...
 /ikun
     自带内容:
-    ikun_core.cpp // 主程序的原代码
-    build.bat // Windows下的编译脚本
-    build_lib.py // 管理脚本
+    ikun_core.cpp   // 主程序的原代码
+    ikun_stderr.hpp // ikun错误库
+    build.bat       // Windows下的编译脚本
+    build.sh        // Linux/macOS下的编译脚本
+    build_lib.py    // 管理脚本
     
     别的内容请访问 https://github.com/0kunkun0/ikun
     或者查看库中的 说明.txt
 */
 
-#define IKUN_VERSION "7.1.1"
-#define IKUN_OS_PLATFORM "Windows x64"
-#define IKUN_CPP_VERSION_REQUIRED 202303L
+#ifdef _MSC_VER
+#define _AMD64_
+#endif
+
+#define IKUN_VERSION "7.1.2"
+#define IKUN_CPP_VERSION_REQUIRED 202302L
 #define IKUN_LANGUAGE_PLATFORM "C++"
 
 #ifdef _MSC_VER // 判断编译器
@@ -32,6 +42,26 @@
     #define GCC
 #endif
 
+#ifdef MSVC // 处理MSVC上__cplusplus宏的问题
+    #undef __cplusplus // 取消定义
+    #define __cplusplus _MSVC_LANG // MSVC上需要用_MSVC_LANG宏来代替, 此处为了兼容性重新定义__cplusplus
+#endif
+
+#if __cplusplus < IKUN_CPP_VERSION_REQUIRED // 判断C++版本
+    #error "此版本的ikun库需要C++23或更高版本"
+    #error "请在编译时指定最低-std=c++23或/std:c++23"
+#endif
+
+#ifdef _WIN32 // 简化Windows API的调用
+    #define WIN32_LEAN_AND_MEAN
+    #define NOMINMAX
+    #define NOGDICAPMASKS
+    #define NOSYSMETRICS
+    #define NOMENUS
+    #define NOICONS
+    #define NOATOM
+#endif
+
 #include <print>
 #include <regex>
 #include <iostream>
@@ -40,12 +70,20 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include "ikun_stderr.hpp"
+
+#ifdef _WIN32
 #include <processthreadsapi.h>
+#else
+#include <unistd.h>
+#include <sys/types.h>
+#endif
 
 using namespace std;
+using namespace ikun_error;
 namespace fs = std::filesystem;
 
-inline namespace core_color
+namespace core_color
 {
     constexpr const char* reset = "\033[0m";
     constexpr const char* red = "\033[31m";
@@ -54,32 +92,52 @@ inline namespace core_color
     constexpr const char* bold = "\033[1m";
 }
 
-string compiler_status = 
+string compiler_status = // 编译器信息
 #ifdef MSVC
-"Microsoft Visual C++"
+"Microsoft Visual C++ Compiler"
 #elifdef CLANG
-"LLVM Clang"
+"Clang/LLVM Compiler"
 #elifdef GCC
-"GNU C Compiler"
+"GNU Compiler Collection"
 #else
-"Unknown"
+"Unknown Compiler"
 #endif
 ;
 
-string os_status = 
+string os_status = // 操作系统信息
 #ifdef _WIN64
-"Windows"
-#elifdef __linux__
-"Linux"
-#elifdef __APPLE__
-"Apple macOS"
+"Windows x64"
+#elifdef _WIN32
+"Windows x86"
+#elif defined(__linux__) && defined(__x86_64__)
+"Linux x86_64"
+#elif defined(__linux__) && defined(__i386__)
+"Linux x86"
+#elif defined(__APPLE__) && defined(__x86_64__)
+"Apple macOS x86_64";compiler_status = "Apple Clang/LLVM Compiler"
+#elif defined(__APPLE__) && defined(__arm64__)
+"Apple macOS ARM64E";compiler_status = "Apple Clang/LLVM Compiler"
 #else
-"Unsupported"
+"Unsupported OS or Architecture"
 #endif
 ;
 
-namespace ikun_core_cpp_functions_do_not_use
+namespace ikun_core_cpp
 {
+    auto getparentdir()
+    {
+        return fs::path(__FILE__).parent_path().string();
+    }
+
+    auto getpid_()
+    {
+        #ifdef _WIN32
+        return GetCurrentProcessId();
+        #else
+        return getpid();
+        #endif
+    }
+
     bool downloadFileFromGitHub
     (
         const string& repoUrl,
@@ -89,7 +147,7 @@ namespace ikun_core_cpp_functions_do_not_use
     )
     {
         // 创建临时目录
-        string tempDir = fs::temp_directory_path().string() + "\\github_download_" + to_string(GetCurrentProcessId());
+        string tempDir = fs::temp_directory_path().string() + "/github_download_" + to_string(getpid_());
         
         try
         {
@@ -128,8 +186,9 @@ namespace ikun_core_cpp_functions_do_not_use
             int rst = system(cmd.c_str());
             if (rst != 0)
             {
-                println(cerr, "错误: git init失败");
-                throw runtime_error("git init failed");
+                throw_re("git init failed",
+                "ikun_core.cpp", "downloadFileFromGitHub()", "core_error 001"
+                );
             }
 
             // 添加远程仓库
@@ -138,8 +197,9 @@ namespace ikun_core_cpp_functions_do_not_use
             rst = system(cmd.c_str());
             if (rst != 0)
             {
-                println(cerr, "错误：添加远程仓库失败");
-                throw runtime_error("git remote add failed");
+                throw_re("git remote add failed",
+                "ikun_core.cpp", "downloadFileFromGitHub()", "core_error 002"
+                );
             }
 
             // 启用稀疏检出
@@ -148,48 +208,55 @@ namespace ikun_core_cpp_functions_do_not_use
             rst = system(cmd.c_str());
             if (rst != 0)
             {
-                println(cerr, "错误：启用稀疏检出失败");
-                throw runtime_error("git config failed");
+                throw_re("git config failed",
+                "ikun_core.cpp", "downloadFileFromGitHub()", "core_error 003"
+                );
             }
 
             // 指定要下载的文件路径
-            string sparseCheckoutFile = ".git/info/sparse-checkout";
-            fs::path sparseCheckoutPath(sparseCheckoutFile);
+            string sCF = ".git/info/sparse-checkout";
+            fs::path sCP(sCF);
             
             // 确保目录存在
-            fs::create_directories(sparseCheckoutPath.parent_path());
+            fs::create_directories(sCP.parent_path());
             
             // 写入要下载的文件路径
             {
-                ofstream file(sparseCheckoutPath);
+                ofstream file(sCP);
                 if (!file.is_open())
                 {
                     println(cerr, "错误：无法创建稀疏检出配置文件");
-                    throw runtime_error("无法创建稀疏检出文件");
+                    throw_re("无法创建稀疏检出文件",
+                    "ikun_core.cpp", "downloadFileFromGitHub()", "core_error 004"
+                );
                 }
                 file << filePath << endl;
             }
 
-            // 5. 拉取文件
+            // 拉取文件
             cmd = "git pull origin " + branch;
             println("执行: {}", cmd);
             rst = system(cmd.c_str());
             if (rst != 0)
             {
-                println(cerr, "错误：拉取文件失败");
-                throw runtime_error("git pull failed");
+                throw_re("git pull failed",
+                "ikun_core.cpp", "downloadFileFromGitHub()", "core_error 005"
+            );
             }
 
-            // 7. 复制文件到输出目录
-            fs::path oP = fs::path(outputDir) / fs::path(filePath).filename();
-            
+            // 构建源文件路径
+            fs::path sF = fs::path(filePath).filename();
+            fs::path oP = fs::path(outputDir) / sF;
+
             // 确保输出目录存在
-            fs::create_directories(outputPath.parent_path());
-            
-            println("复制文件从 {} 到 {}", dF, oP);
-            string operation = "copy" + dF.string() + oP.string();
-            println("文件下载成功: {}", oP);
+            fs::create_directories(oP.parent_path());
+
+            println("复制文件从 {} 到 {}", sF.string(), oP.string());
+            string operation = "copy " + sF.string() + " " + oP.string();
+            system(operation.c_str());
+            println("文件下载成功: {}", oP.string());
             success = true;
+
 
         }
         catch (const exception& e)
@@ -239,7 +306,8 @@ namespace ikun_core_cpp_functions_do_not_use
                         if (!ext.empty() && 
                             equal(ext.begin(), ext.end(), 
                                     fileextname.begin(), fileextname.end(),
-                                    [](char a, char b) {
+                                    [](char a, char b)
+                                    {
                                         return tolower(a) == tolower(b);
                                     }))
                         {
@@ -274,6 +342,7 @@ namespace ikun_core_cpp_functions_do_not_use
         println("操作系统: {}", os_status);
         println("编程语言: 编译时使用{}", IKUN_LANGUAGE_PLATFORM);
         println("- 语言扩展: 编译时使用的C++标准: {}", __cplusplus);
+        println("提示: 上面的选项只要有一个是Unknown本库就无法正常使用");
     }
 
     void help()
@@ -281,17 +350,19 @@ namespace ikun_core_cpp_functions_do_not_use
         println("使用方法: ikun [选项] [参数]");
         println("使用本库时请保证电脑有一个可正常连接GitHub的网络和Git");
         println("选项:");
-        println("  -v, --version: 显示版本信息");
-        println("  -h, --help: 显示帮助信息");
-        println("  -l, --list: 列出所有可用的库");
-        println("  -li, --list-libs: 列出所有安装了的库");
-        println("  -i, --install: 安装指定的库");
-        println("  -ih, --install-header: 安装指定的头文件");
-        println("  -u, --uninstall: 卸载指定的库/头文件");
-        println("  -c, --check: 检查指定的库是否已安装");
-        println("  -ic, --install-core: 安装核心程序");
+        println("  -v, --version:               显示版本信息");
+        println("  -h, --help:                  显示帮助信息");
+        println("  -l, --list:                  列出所有可用的模块");
+        println("  -ll, --list-libs:            列出所有安装了的模块");
+        println("  -i, --install:               安装指定的模块");
+        println("  -ip, --install-preview:      安装指定模块的预览版");
+        println("  -ifl, --install-from-local:  从本地ikun库安装副本安装模块(此方法适用于基于ikun库扩展的模块)");
+        println("  -u, --uninstall:             卸载指定的模块");
+        println("  -c, --check:                 检查指定的模块是否已安装");
+        println("  -bp, --build-project:        构建基于ikun库开发的C++项目(预览版, 目前仅提供快速编译功能)");
         println("参数:");
-        println("  库名: 指定要安装/卸载/检查的库的名称");
+        println("  (-i, -u, -c, --install-from-local) 库名: 指定要安装/卸载/检查的库的名称");
+        println("  (--install-from-local) 本地库路径: 指定要安装的本地库的相对/绝对路径(以/作为分隔符, 如D:/workspace/dev/ikun/ikun_core.hpp");
     }
 
     void core_list_libs()
@@ -306,7 +377,7 @@ namespace ikun_core_cpp_functions_do_not_use
         core_filedir("./", ".hpp");
     }
 
-    void install_header(string lib_name) // 从GitHub上下载单个头文件
+    void install(string lib_name, bool ispreview = false) // 从GitHub上下载库
     {
         println("从GitHub上下载库");
         println("库名: {}", lib_name);
@@ -316,48 +387,26 @@ namespace ikun_core_cpp_functions_do_not_use
         string url;
         getline(file, url);
         file.close();
+
+        string branch;
+
+        if (ispreview)
+        {
+            branch = "preview";
+        }
+        else
+        {
+            branch = "main";
+        }
 
         bool a = downloadFileFromGitHub
         (
             url,
             lib_name + ".hpp",
-            "main",
+            branch,
             "./"
         );
         if (a)
-        {
-            println("下载失败");
-            return;
-        }
-    }
-
-    void install_lib(string lib_name) // 从GitHub上下载单个库
-    {
-        println("从GitHub上下载库");
-        println("库名: {}", lib_name);
-        println("请保证库名正确");
-
-        ifstream file("libs_download_url.txt");
-        string url;
-        getline(file, url);
-        file.close();
-
-        bool a = downloadFolderFromGitHub
-        (
-            url,
-            lib_name,
-            "main",
-            "./",
-            true
-        );
-        bool b = downloadFileFromGitHub
-        (
-            "https://github.com/0kunkun0/ikun.git",
-            lib_name + ".hpp",
-            "main",
-            "./"
-        );
-        if (a || b)
         {
             println("下载失败");
             return;
@@ -383,21 +432,118 @@ namespace ikun_core_cpp_functions_do_not_use
 
     bool check_lib_install(string lib_name)
     {
-        if ((lib_name == "core") || (lib_name == "functions")
-        || (lib_name == "all_libs") || (lib_name == "stdc++lib")
-        || (lib_name == "high_precision_digit") || (lib_name == "github")
-        || (lib_name == "github") || (lib_name == "test_high_precision_digit")) // 防止额外开销
+        return core_fileexists(lib_name + ".hpp");
+    }
+    
+    void install_from_local(string lib_name, string path)
+    {
+        println("从本地库安装副本");
+        // 检查路径是否正确
+        if (!core_fileexists(path))
         {
-            return true;
+            println("{}错误: 路径不存在{}", core_color::red, core_color::reset);
+            return;
+        }
+        // 检查文件是否存在
+        if (!core_fileexists(path + "/" + lib_name + ".hpp"))
+        {
+            println("{}错误: 文件不存在{}", core_color::red, core_color::reset);
+            return;
+        }
+        #ifdef _WIN32
+            string a = "copy " + path + " " + lib_name + ".hpp";
+        #elif defined(__linux__) || defined(__APPLE__)
+            string a = "cp " + path + " " + lib_name + ".hpp";
+        #endif
+        system(a.c_str());
+        if (!core_fileexists(lib_name + ".hpp"))
+        {
+            println("{}错误: 安装失败{}", core_color::red, core_color::reset);
+            return;
+        }
+    }
+
+    void build_project()
+    {
+        println("ikun库构建项目(预览版)");
+        print("请保证ikun库位于项目目录下, 或者指定目录(输入0跳过):");
+        string project_path;
+        getline(cin, project_path);
+        if (project_path == "0")
+        {
+            project_path = "./";
+        }
+        if (!core_fileexists(project_path))
+        {
+            println("{}错误: 路径不存在{}", core_color::red, core_color::reset);
+            return;
         }
 
-        return core_fileexists(lib_name + ".hpp");
+        println("请输入使用的编译器: (1: g++, 2: clang++, 3: cl)");
+        int compiler;
+        cin >> compiler;
+        if (compiler < 1 || compiler > 3)
+        {
+            println("{}错误: 编译器选项无效{}", core_color::red, core_color::reset);
+            return;
+        }
+        #ifndef _WIN32
+            if (compiler == 3)
+            {
+                println("{}错误: cl(MSVC)编译器仅在Windows上可用{}", core_color::red, core_color::reset);
+                return;
+            }
+        #endif
+
+        print("请输入编译时包括的文件(以空格分隔):");
+        string files;
+        getline(cin, files);
+        print("\n请输入输出文件名(Linux/macOS不输入扩展名, Windows输入.exe)");
+        string output_file;
+        getline(cin, output_file);
+        print("\n请输入是否静态链接: (1: 是, 0: 否)");
+        int is_static;
+        cin >> is_static;
+        if (is_static > 1 || is_static < 0)
+        {
+            println("{}错误: 静态链接选项无效{}", core_color::red, core_color::reset);
+            return;
+        }
+
+        string command;
+        string static_;
+        if (is_static) static_ = "-static ";
+        else static_ = "";
+        if (compiler == 1)
+        {
+            command = "g++ -std=c++26 -O3 -lstdc++exp " + static_ + files + " -o " + output_file;
+        }
+        else if (compiler == 2)
+        {
+            command = "clang++ -std=c++26 -O3 -lstdc++exp -stdlib=libc++ " + files + " -o " + output_file;
+        }
+        else if (compiler == 3)
+        {
+            if (is_static) static_ = "/MT ";
+            else static_ = "/MD ";
+            command = "cl /EHsc /std:c++latest /nologo /O2 /MT /Zc:__cplusplus " + static_ + files + " /Fe:" + output_file;
+        }
+        command += " > ./build.log 2>&1"; // 将编译日志输出到build.log文件中
+        println("\n\n选项处理完成, 正在启动编译...");
+        if (system(command.c_str()) == 0)
+        {
+            println("{}编译成功{}", core_color::green, core_color::reset);
+        }
+        else
+        {
+            println("\n{}编译失败, 错误原因已输出在当前目录的build.log文件{}", core_color::red, core_color::reset);
+        }
     }
 }
 
 int main(int argc, char* argv[])
 {
-    using namespace ikun_core_cpp_functions_do_not_use;
+    using namespace ikun_core_cpp;
     println("ikun库核心管理器");
 
     if (!core_fileexists("libs_download_url.txt"))
@@ -433,35 +579,30 @@ int main(int argc, char* argv[])
             core_list_libs();
             return 0;
         }
-        else if (arg == "-li" || arg == "--list-libs")
+        else if (arg == "-ll" || arg == "--list-libs")
         {
             list_installed_libs();
             return 0;
-        }
-        else if (arg == "-ih" || arg == "--install-header")
-        {
-            if (i + 1 < argc)  // 检查是否有足够的参数
-            {
-                install_header(argv[i + 1]);
-                i ++;  // 跳过下一个参数(库名)
-            }
-            else
-            {
-                println("{}错误: 请指定要安装的头文件名{}", core_color::red, core_color::reset);
-                return 1;
-            }
         }
         else if (arg == "-i" || arg == "--install")
         {
             if (i + 1 < argc)
             {
-                install_lib(argv[i + 1]);
+                install(argv[i + 1]);
                 i ++;
             }
             else
             {
-                println("{}错误: 请指定要安装的库名{}", core_color::red, core_color::reset);
+                println("{}错误: 请指定要安装的模块名{}", core_color::red, core_color::reset);
                 return 1;
+            }
+        }
+        else if (arg == "-ip" || arg == "--install-preview")
+        {
+            // 安装preview分支的库
+            if (i + 1 < argc)
+            {
+                install(argv[i + 1], true);
             }
         }
         else if (arg == "-u" || arg == "--uninstall")
@@ -473,7 +614,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                println("{}错误: 请指定要卸载的库名{}", core_color::red, core_color::reset);
+                println("{}错误: 请指定要卸载的模块名{}", core_color::red, core_color::reset);
                 return 1;
             }
         }
@@ -483,11 +624,11 @@ int main(int argc, char* argv[])
             {
                 if (check_lib_install(argv[i + 1]))
                 {
-                    println("{} 库已安装", argv[i + 1]);
+                    println("{} 模块已安装", argv[i + 1]);
                 }
                 else
                 {
-                    println("{} 库未安装或不存在", argv[i + 1]);
+                    println("{} 模块未安装或不存在", argv[i + 1]);
                 }
                 i ++;
             }
@@ -497,10 +638,22 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
-        else if (arg == "-ic" || arg == "--install-core")
+        else if (arg == "-ifl" || arg == "--install-from-local")
         {
-            install_header("core");
-            install_header("functions");
+            if (i + 2 < argc)
+            {
+                install_from_local(argv[i + 1], argv[i + 2]);
+                i += 2;
+            }
+            else
+            {
+                println("{}错误: 请指定要安装的模块名和路径{}", core_color::red, core_color::reset);
+                return 1;
+            }
+        }
+        else if (arg == "-bp" || arg == "--build-project")
+        {
+            build_project();
         }
         else
         {

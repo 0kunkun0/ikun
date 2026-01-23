@@ -1,6 +1,7 @@
 // ikun库functions.hpp
 // 包括如文件操作, 随机数生成, 数学计算等实用函数
-// 某些库依赖Windows API
+// 某些函数依赖操作系统API
+
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
@@ -19,6 +20,7 @@
 #include <chrono>
 #include <thread>
 #include <random>
+#include "ikun_stderr.hpp"
 
 const long double PI = 3.141592653589793238L; // 圆周率(受精度限制, 小数点后最多保留17位)
 typedef unsigned long long ull;
@@ -172,7 +174,9 @@ namespace libs
         std::ifstream file(filename, std::ios::binary);
         if (!file.is_open())
         {
-            throw std::runtime_error("无法打开文件: " + filename);
+            ikun_error::throw_re("Cannot open file: " + filename,
+            "functions.hpp", "rfile()", "ikun_file 001"
+            );
         }
         
         std::string content;
@@ -195,7 +199,9 @@ namespace libs
         std::ofstream file(filename, std::ios::binary);
         if (!file.is_open())
         {
-            throw std::runtime_error("无法创建文件: " + filename);
+            ikun_error::throw_re("Cannot open/create file: " + filename,
+            "functions.hpp", "wfile()", "ikun_file 002"
+            );
         }
         file.write(content.c_str(), content.size());
         file.close();
@@ -211,7 +217,9 @@ namespace maths
 {
     ll fac(int n) // 计算阶乘 (对于常量, 可使用模板元编程Fac<n>::value计算)
     {
-        if (n < 0) throw std::invalid_argument("阶乘不能为负数");
+        if (n < 0) ikun_error::throw_inv_arg("Factorial of negative number is undefined",
+        "functions.hpp", "fac()", "ikun_maths 001"
+        );
         if (n == 0) return 1;
         if (n == 1) return 1;
         return fac(n - 1) * n;
@@ -403,15 +411,15 @@ namespace times
             {
                 end = std::chrono::high_resolution_clock::now();
             }
-            int return_ms()
+            auto return_ms()
             {
                 return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
             }
-            int return_us()
+            auto return_us()
             {
                 return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
             }
-            int return_ns()
+            auto return_ns()
             {
                 return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             }

@@ -27,16 +27,16 @@
 #include "high_precision_digit.hpp"
 #endif
 
-#if __has_include ("github.hpp")
-#include "github.hpp"
-#endif
-
-#if __has_include ("print.hpp") // 不是C++标准库别理解错了
-#include "print.hpp"
+#if __has_include ("input.hpp")
+#include "input.hpp"
 #endif
 
 #if __has_include ("console_color.hpp")
 #include "console_color.hpp"
+#endif
+
+#if __has_include ("ikun_stderr.hpp")
+#include "ikun_stderr.hpp"
 #endif
 
 #ifndef IKUN_NONAMESPACE
@@ -74,6 +74,14 @@ using namespace color; // console_color.hpp
 
 #ifdef IKUN_HIGH_PRECISION_DIGIT_HPP
 using namespace high_precision_digit; // high_precision_digit.hpp
+#endif
+
+#ifdef IKUN_INPUT_HPP
+using namespace ikun_input; // input.hpp
+#endif
+
+#ifdef IKUN_STDERR_HPP
+using namespace ikun_error; // ikun_stderr.hpp
 #endif
 
 #endif // IKUN_NONAMESPACE

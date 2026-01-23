@@ -17,4 +17,5 @@ namespace color
     constexpr const char* bold = "\033[1m";
 }
 
+// 别想多了整个库就这么点
 #endif // IKUN_CONSOLE_COLOR_HPP

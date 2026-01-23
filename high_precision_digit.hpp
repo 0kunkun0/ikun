@@ -19,11 +19,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
-#include <stdexcept>
 #include <cstdlib>
+#include "ikun_stderr.hpp"
 
 namespace high_precision_digit
 {
+using namespace ikun_error; // ikun库错误抛出函数
 class bigint // 大数库
 {
 private:
@@ -372,7 +373,9 @@ public:
         {
             if (!isdigit(s[i]))
             {
-                throw std::invalid_argument("Invalid character in number string");
+                throw_inv_arg("Invalid character in argument of bigint constructor",
+                    "high_precision_digit.hpp", "class bigint(in constructor)", "ikun_bigint 001"
+                );
             }
             
             current_value += (s[i] - '0') * current_power;
@@ -562,7 +565,9 @@ public:
     {
         if (other == bigint(0))
         {
-            throw std::runtime_error("Division by zero");
+            throw_re("Division by zero",
+                "high_precision_digit.hpp", "class bigint in operator/", "ikun_bigint 002"
+            );
         }
         
         bigint a = *this;
@@ -595,7 +600,7 @@ public:
             bigint product = divisor * bigint(q);
             while (product > a)
             {
-                --q;
+                -- q;
                 product = divisor * bigint(q);
             }
             
@@ -623,7 +628,9 @@ public:
     {
         if (other == bigint(0))
         {
-            throw std::runtime_error("Modulo by zero");
+            throw_re("Modulo by zero",
+                "high_precision_digit.hpp", "class bigint in operator%", "ikun_bigint 003"
+            );
         }
         
         bigint quotient = *this / other;
@@ -649,7 +656,9 @@ public:
     {
         if (exponent < 0)
         {
-            throw std::runtime_error("Negative exponent not supported for integers");
+            throw_re("Negative exponent not supported for integers",
+                "high_precision_digit.hpp", "class bigint in pow()", "ikun_bigint 004"
+            );
         }
         
         if (exponent == 0) return bigint(1);
@@ -829,7 +838,9 @@ public:
     {
         if (n.is_negative)
         {
-            throw std::runtime_error("Square root of negative number");
+            throw_re("Square root of negative number",
+                "high_precision_digit.hpp", "class bigint in sqrt()", "ikun_bigint 005"
+            );
         }
         
         if (n == bigint(0) || n == bigint(1)) return n;
@@ -860,14 +871,14 @@ public:
     }
     
     // 实用函数
-    int get_digit_count() const noexcept
+    size_t get_digit_count() const noexcept
     {
         if (digits.empty()) return 0;
-        int count = (digits.size() - 1) * BASE_DIGITS;
+        size_t count = (digits.size() - 1) * BASE_DIGITS;
         int last = digits.back();
         while (last > 0)
         {
-            count++;
+            count ++;
             last /= 10;
         }
         return count == 0 ? 1 : count;
@@ -916,8 +927,15 @@ std::istream& operator>>(std::istream& is, bigint& n)
 namespace maths
 {
     using namespace high_precision_digit;
+    using namespace ikun_error;
     bigint big_fac(int n) // 大数阶乘
     {
+        if (n < 0)
+        {
+            throw_re("Factorial of negative number",
+                "high_precision_digit.hpp", "function big_fac()", "ikun_bigint 006"
+            );
+        }
         bigint result(1);
         for (int i = 2; i <= n; ++ i)
         {
@@ -928,6 +946,12 @@ namespace maths
 
     bigint big_pow(bigint base, int exp) // 大数幂
     {
+        if (exp < 0)
+        {
+            throw_re("Negative exponent",
+                "high_precision_digit.hpp", "function big_pow()", "ikun_bigint 004"
+            );
+        }
         bigint result(1);
         for (int i = 0; i < exp; ++ i)
         {
