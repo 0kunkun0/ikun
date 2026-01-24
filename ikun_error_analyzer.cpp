@@ -67,12 +67,6 @@ void ikun_input_error_analyzer(int error_code)
 
 void ikun_hpd_error_analyzer(int error_code) // 高精度整数库错误分析器
 {
-    // 1: 构造函数参数为string时, string中包含非法字符
-    // 2: 除以0
-    // 3: 取模0
-    // 4: 负数pow()
-    // 5: 负数sqrt()
-    // 6: 负数fac()
     string error_message;
     switch (error_code)
     {
@@ -246,6 +240,27 @@ void core_error_analyzer(int error_code) // 库管理程序错误
     print_error(error_message);
 }
 
+void ikun_maths_error_analyzer(int error_code)
+{
+    string error_message;
+    switch (error_code)
+    {
+        case 1:
+            error_message =
+            "分析结果: \n"
+            "  类型: 参数不合法\n"
+            "  原因: 在使用maths.hpp库的fac()函数时, 提供的数为负数\n"
+            "  解决方案: \n"
+            "    不要对负数求阶乘\n";
+            break;
+        default:
+            error_message = default_message;
+            break;
+    }
+
+    print_error(error_message);
+}
+
 int main()
 {
     println("-------------------------------");
@@ -286,6 +301,11 @@ int main()
         {
             println("\n正在分析中...");
             core_error_analyzer(error_code);
+        }
+        else if (error_type == "ikun_maths")
+        {
+            println("\n正在分析中...");
+            ikun_maths_error_analyzer(error_code);
         }
         else if (error_type == "exit")
         {
