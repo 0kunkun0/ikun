@@ -42,14 +42,14 @@ namespace files
         // 检查目录是否存在
         if (!std::filesystem::exists(path))
         {
-            std::cerr << "错误: 目录 '" << path << "' 不存在" << std::endl;
+            std::println(stderr, "错误: '{}' 不存在", path);
             return files; // 返回空向量
         }
 
         // 检查是否是目录
         if (!std::filesystem::is_directory(path))
         {
-            std::cerr << "错误: '" << path << "' 不是目录" << std::endl;
+            std::println(stderr ,"错误: '{}' 不是目录", path);
             return files;
         }
 
@@ -82,11 +82,11 @@ namespace files
                     }
                     else
                     {
-                        // 6. 检查文件扩展名
+                        // 检查文件扩展名
                         // 获取文件扩展名
                         std::string ext = entry.path().extension().string();
                         
-                        // 7. 比较扩展名(不区分大小写)
+                        // 比较扩展名(不区分大小写)
                         if (!ext.empty() && 
                             std::equal(ext.begin(), ext.end(), 
                                     fileextname.begin(), fileextname.end(),
@@ -103,11 +103,11 @@ namespace files
         }
         catch (const std::filesystem::filesystem_error& e)
         {
-            std::cerr << "文件系统错误: " << e.what() << std::endl;
+            ikun_error::throw_re(e.what(), "files.hpp", "filedir()", "ikun_file 003");
         }
         catch (const std::exception& e)
         {
-            std::cerr << "错误: " << e.what() << std::endl;
+            ikun_error::throw_re(e.what(), "files.hpp", "filedir()", "ikun_file 004");
         }
 
         return files;
@@ -138,46 +138,6 @@ namespace files
         return content;
     }
 
-    bool check_file_name(std::string dir_name) // 检查文件名是否合法
-    {
-        if (dir_name.find_first_of("/\\:*?\"<>|") != std::string::npos)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    int get_cppversion() // 获取C++版本
-    {
-        // 检查是否为预览版, 如果是预览版则补全到正式版
-        // 如C++26预览版的__cplusplus宏为202400L而非2026xxL, 此处就需要把24处理为26, 以此类推
-        // 此处有一个规律: 正式版C++版本可以用(__cplusplus / 100 % 100) % 3 == 2判断
-        // (举个例子, C++17中的17 % 3 == 2, C++20和23也一样)
-        // 一般情况下, C++正式版版本号总是模3等于2, 此函数会把预览版处理为正式版
-        // 考虑到C++03的特殊情况, 又考虑到C++03没有独立的__cplusplus宏, 所以这里不处理C++03
-        int cppversion = (__cplusplus / 100) % 100; // C++版本
-        int temp = cppversion % 3;
-
-        if (temp != 2)
-        {
-            if (temp == 1) cppversion += 1; // 假设为201600L, 也就是假想的C++17预览版
-            if (temp == 0) cppversion += 2; // 202400L, 也就是C++26预览版
-        } // 如果是C++98, temp此时为1, cppversion为97, 会被正确处理为98
-
-        return cppversion;
-    }
-
-    bool check_dir_name(std::string dir_name) // 检查目录名是否合法
-    {
-        if (dir_name.find_first_of(":*?\"<>|") != std::string::npos)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
     /**
      * @brief 写入文件
      * @param filename 文件名
@@ -194,6 +154,26 @@ namespace files
         }
         file.write(content.c_str(), content.size());
         file.close();
+    }
+
+    bool check_file_name(std::string file_name) // 检查文件名是否合法
+    {
+        if (file_name.find_first_of("/\\:*?\"<>|") != std::string::npos)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool check_dir_name(std::string dir_name) // 检查目录名是否合法
+    {
+        if (dir_name.find_first_of(":*?\"<>|") != std::string::npos)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     void mkdir(const std::string& path) // 创建目录

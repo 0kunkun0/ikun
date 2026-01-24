@@ -14,7 +14,7 @@ export LC_ALL=en_US.UTF-8
 echo "ikun库构建脚本, 基于 Bash 实现"
 echo "请确保已安装 Python 3.10+, 可用的 C++ 编译器以及 Git, 并已配置好环境变量"
 echo ""
-read -p "按回车键继续..." -n1 -s
+read -p "按任意键继续..." -n1 -s
 echo -e "\n"
 
 clear
@@ -43,7 +43,7 @@ echo "由于本库大量使用C++23 print库, 故"
 echo "请保证使用的标准库, 如GNU libstdc++, LLVM libc++ 支持 C++23"
 echo "如果使用 macOS, 请确保 Xcode Command Line Tools 已安装"
 echo ""
-read -p "按回车键继续..." -n1 -s
+read -p "按任意键继续..." -n1 -s
 echo -e "\n"
 
 echo "版本信息:"
@@ -59,7 +59,7 @@ echo "Clang:"
 clang++ --version 2>/dev/null | head -1 || echo "Clang 未安装"
 echo ""
 
-read -p "按回车键继续..." -n1 -s
+read -p "按任意键继续..." -n1 -s
 echo -e "\n"
 
 echo "正在检查 build_lib.py 是否存在于当前目录..."

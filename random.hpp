@@ -1,4 +1,5 @@
 // ikun库随机数相关模块random.hpp
+// 为了Linux上的兼容性, 此处使用random_作为命名空间
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
@@ -11,7 +12,7 @@
 #include <random>
 #include <ctime>
 
-namespace random
+namespace random_
 {
     int random_int(int min, int max) // 区间随机数生成器
     {

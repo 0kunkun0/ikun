@@ -72,11 +72,11 @@ using namespace std::filesystem; // C++ 标准库
 using namespace high_precision_digit; // high_precision_digit.hpp
 #endif
 
-#ifdef IKUN_FUNCTIONS_HPP
-using namespace libs; // files.hpp
+#ifdef IKUN_FILES_HPP
+using namespace files; // files.hpp
 #endif
 
-#ifdef IKUN_MATH_HPP
+#ifdef IKUN_MATHS_HPP
 using namespace maths; // maths.hpp
 #endif
 
@@ -85,7 +85,7 @@ using namespace times; // times.hpp
 #endif
 
 #ifdef IKUN_RANDOM_HPP
-using namespace random; // random.hpp
+using namespace random_; // random.hpp
 #endif
 
 #ifdef IKUN_CONSOLE_COLOR_HPP
@@ -105,5 +105,22 @@ using namespace ikun_error; // ikun_stderr.hpp
 #endif
 
 #endif // IKUN_NONAMESPACE
+
+int get_cppversion() // all_libs.hpp扩展: 获取C++版本
+{
+    #ifdef _MSC_VER
+    int cppversion = _MSVC_LANG / 100 % 100;
+    #else
+    int cppversion = __cplusplus / 100 % 100; // C++版本
+    #endif
+    int temp = cppversion % 3;
+
+    if (temp != 2)
+    {
+        if (temp == 1) cppversion += 1; // 假设为201600L, 也就是假想的C++17预览版
+        if (temp == 0) cppversion += 2; // 202400L, 也就是C++26预览版
+    } // 如果是C++98, temp此时为1, cppversion为97, 会被正确处理为98
+    return cppversion;
+}
 
 #endif // ALL_LIBS_HPP

@@ -6,8 +6,8 @@
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
 // 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
 
-#ifndef IKUN_MATH_HPP
-#define IKUN_MATH_HPP
+#ifndef IKUN_MATHS_HPP
+#define IKUN_MATHS_HPP
 
 #include "ikun_stderr.hpp"
 #include <cmath>
@@ -46,22 +46,16 @@ struct Fib<0>
     static constexpr ull value = 0;
 };
 
-template <int N>
+template<int B, int E>
 struct Pow // 幂(模板元编程)
 {
-    static constexpr ull value = N * Pow<N - 1>::pow;
+    static constexpr long long value = B * Pow<B, E - 1>::value;
 };
 
-template <>
-struct Pow<1>
+template<int B>
+struct Pow<B, 0>
 {
-    static constexpr ull value = 1;
-};
-
-template <>
-struct Pow<0>
-{
-    static constexpr ull value = 1;
+    static constexpr long long value = 1;
 };
 
 namespace maths
@@ -119,4 +113,4 @@ namespace maths
     }
 }
 
-#endif // IKUN_MATH_HPP
+#endif // IKUN_MATHS_HPP

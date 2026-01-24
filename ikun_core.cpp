@@ -126,6 +126,16 @@ string os_status = // 操作系统信息
 #endif
 ;
 
+string tips =
+#ifdef _WIN64
+"请保证使用的终端为Windows Terminal和PowerShell 5.1+, cmd.exe可能无法显示ANSI转义序列(即带颜色的字符)"
+#elifdef __linux__
+"请注意: ikun库在Linux下的支持为实验性, 由于作者懒得制作Linux虚拟机, 测试均在WSL2下测试, 可能会有各种bug"
+#elifdef __APPLE__
+"请注意: ikun库在macOS的支持不完整, 由于作者没有Mac设备, 操作系统API相关特性均使用POSIX兼容性实现, 某些极端情况可能无法正常使用"
+#endif
+;
+
 namespace ikun_core_cpp
 {
     int core_get_cppversion() // 获取C++版本
@@ -270,7 +280,11 @@ namespace ikun_core_cpp
             fs::create_directories(oP.parent_path());
 
             println("复制文件从 {} 到 {}", sF.string(), oP.string());
+            #ifdef _WIN32
             string operation = "copy " + sF.string() + " " + oP.string();
+            #else
+            string operation = "cp " + sF.string() + " " + oP.string();
+            #endif
             system(operation.c_str());
             println("文件下载成功: {}", oP.string());
             success = true;
@@ -387,13 +401,21 @@ namespace ikun_core_cpp
     void core_list_libs()
     {
         // 访问作者GitHub
+        #ifdef _WIN32
         system("start https://github.com/0kunkun0/ikun");
+        #else
+        system("xdg-open https://github.com/0kunkun0/ikun");
+        #endif
     }
 
     void list_installed_libs()
     {
         println("已安装的库:");
-        core_filedir("./", ".hpp");
+        vector<string> libs = core_filedir("./", ".hpp");
+        for (const auto &lib : libs)
+        {
+            println("  {}", lib);
+        }
     }
 
     void install(string lib_name, bool ispreview = false) // 从GitHub上下载库
@@ -432,10 +454,10 @@ namespace ikun_core_cpp
         }
     }
 
-    void uninstall_lib(string lib_name)
+    void uninstall(string lib_name)
     {
         println("卸载库");
-        if ((lib_name == "ikunn_core") || (lib_name == "build") || (lib_name == "build_lib"))// 防误删逻辑
+        if ((lib_name == "ikun_core") || (lib_name == "build") || (lib_name == "build_lib") || (lib_name == "ikun_stderr"))// 防误删逻辑
         {
             println("{}关键错误: 无法卸载核心库{}", core_color::red, core_color::reset);
             return;
@@ -445,11 +467,15 @@ namespace ikun_core_cpp
         println("{}请保证库名正确, 否则可能误删文件", core_color::red);
         println("删除时不会经过回收站, 按下回车键继续{}", core_color::reset);
         cin.ignore();
+        #ifdef _WIN32
         string a = "del /S /F /Q " + lib_name + ".hpp";
+        #else
+        string a = "rm -rf " + lib_name + ".hpp";
+        #endif
         system(a.c_str());
     }
 
-    bool check_lib_install(string lib_name)
+    bool check_install(string lib_name)
     {
         return core_fileexists(lib_name + ".hpp");
     }
@@ -470,9 +496,9 @@ namespace ikun_core_cpp
             return;
         }
         #ifdef _WIN32
-            string a = "copy " + path + " " + lib_name + ".hpp";
+            string a = "copy " + path + " " + lib_name + ".hpp .\\";
         #elif defined(__linux__) || defined(__APPLE__)
-            string a = "cp " + path + " " + lib_name + ".hpp";
+            string a = "cp " + path + "/" + lib_name + ".hpp ./";
         #endif
         system(a.c_str());
         if (!core_fileexists(lib_name + ".hpp"))
@@ -501,6 +527,9 @@ namespace ikun_core_cpp
         }
         #elif defined(__linux__) || defined(__APPLE__)
         if (dir_name.find_first_of(":*?\"<>|") != string::npos)
+        {
+            return false;
+        }
         #endif
 
         return true;
@@ -605,6 +634,7 @@ int main(int argc, char* argv[])
     using namespace ikun_core_cpp;
     println("ikun库核心管理器");
     println("版本: {}", IKUN_VERSION);
+    println("{}", tips);
 
     if (!core_fileexists("libs_download_url.txt"))
     {
@@ -669,7 +699,7 @@ int main(int argc, char* argv[])
         {
             if (i + 1 < argc)
             {
-                uninstall_lib(argv[i + 1]);
+                uninstall(argv[i + 1]);
                 i ++;
             }
             else
@@ -682,7 +712,7 @@ int main(int argc, char* argv[])
         {
             if (i + 1 < argc)
             {
-                if (check_lib_install(argv[i + 1]))
+                if (check_install(argv[i + 1]))
                 {
                     println("{} 模块已安装", argv[i + 1]);
                 }
@@ -708,6 +738,7 @@ int main(int argc, char* argv[])
             else
             {
                 println("{}错误: 请指定要安装的模块名和路径{}", core_color::red, core_color::reset);
+                println("示例: ./ikun -ifl ikun_core /usr/local/ikun/");
                 return 1;
             }
         }
@@ -717,7 +748,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            println("{}关键错误: 未知选项: {}{}", arg, core_color::red, core_color::reset);
+            println("{}关键错误: 未知选项: {}{}", core_color::red, arg, core_color::reset);
             help();
             return 1;
         }

@@ -125,7 +125,8 @@ namespace ikun_error
             "From library" + where_lib + ":\n"
             "    In function " + where_func + ":\n"
             "        " + string(ikun_error::red) + "Logic Error: " + error_info + "\n" + string(ikun_error::reset) +
-            "Please check your code.\n";
+            "Please check your code.\n"
+            + string(ikun_error::red) + "Error Code: " + err_code + "\n" + string(ikun_error::reset);
         ofstream error_log = ofstream("ikun_error.log");
         error_log << output_err_info;
         error_log.close();

@@ -6,21 +6,11 @@
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
 // 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
 
-#define WIN32_LEAD_AND_MEAN
-#define NOMINMAX
-#define WIN32_LEAD_EXTRA
-
 #include <print>
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <ctime>
-
-#ifdef _MSC_VER
-#include <Windows.h>
-#else
-#include <windows.h>
-#endif
 
 using namespace std;
 
@@ -155,7 +145,7 @@ void ikun_file_error_analyzer(int error_code)
             error_message =
             "分析结果: \n"
             "  类型: 运行时错误\n"
-            "  原因: 在使用functions.hpp库rfile()函数时, 无法打开文件\n"
+            "  原因: 在使用files.hpp库rfile()函数时, 无法打开文件\n"
             "  解决方案: \n"
             "    1. 确保文件存在\n"
             "    2. 确保文件路径正确\n"
@@ -165,11 +155,17 @@ void ikun_file_error_analyzer(int error_code)
             error_message =
             "分析结果: \n"
             "  类型: 运行时错误\n"
-            "  原因: 在使用functions.hpp库wfile()函数时, 无法创建/打开文件\n"
+            "  原因: 在使用files.hpp库wfile()函数时, 无法创建/打开文件\n"
             "  解决方案: \n"
             "    1. 确保文件路径合法\n"
             "    2. 确保程序有权限创建文件\n"
             "    3. 确保文件名合法(如在Windows上不能用CON等保留字, 特殊字符等作为文件名)\n";
+            break;
+        case 3:case 4:
+            error_message =
+            "分析结果: \n"
+            "  类型: 运行时错误\n"
+            "  原因: 在使用files.hpp库filedir()函数时, 发生未知错误(错误由filesystem库抛出)\n";
             break;
         default:
             error_message = default_message;

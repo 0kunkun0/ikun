@@ -15,6 +15,8 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <print>
+#include <format>
 
 // 平台检测宏
 #if defined(_WIN32) || defined(_WIN64)
@@ -33,22 +35,24 @@
 namespace times
 {
     using std::this_thread::sleep_for;
-    using std::chrono::milliseconds;
-    using std::chrono::microseconds;
     using std::ostringstream;
     using std::setw;
     using std::setfill;
     using std::string;
     using std::tm;
+    using std::print;
+    using std::format;
+    using std::println;
+    using namespace std::chrono;
 
     void sleep_ms(int ms) // 休眠指定毫秒
     {
-        this_thread::sleep_for(milliseconds(ms));
+        sleep_for(milliseconds(ms));
     }
 
     void sleep_us(int us) // 休眠指定微秒
     {
-        this_thread::sleep_for(microseconds(us));
+        sleep_for(microseconds(us));
     }
 
     string get_time() // 获取当前时间字符串
@@ -66,13 +70,14 @@ namespace times
         const char* weekdays[] = {"日", "一", "二", "三", "四", "五", "六"};
         
         ostringstream oss;
-        oss << (tm_info.tm_year + 1900) << "年"
-            << setw(2) << setfill('0') << (tm_info.tm_mon + 1) << "月"
-            << setw(2) << setfill('0') << tm_info.tm_mday << "日 星期"
-            << weekdays[tm_info.tm_wday] << " "
-            << setw(2) << setfill('0') << tm_info.tm_hour << ":"
-            << setw(2) << setfill('0') << tm_info.tm_min << ":"
-            << setw(2) << setfill('0') << tm_info.tm_sec;
+        print("{:04d}年{:02d}月{:02d}日 星期{} {:02d}:{:02d}:{:02d}",
+            tm_info.tm_year + 1900,
+            tm_info.tm_mon + 1,
+            tm_info.tm_mday,
+            weekdays[tm_info.tm_wday],
+            tm_info.tm_hour,
+            tm_info.tm_min,
+            tm_info.tm_sec);
         
         return oss.str();
     }
@@ -221,7 +226,8 @@ namespace times
     }
 
     // 时间间隔计算类
-    class Duration {
+    class Duration
+    {
     private:
         long long milliseconds_;
     public:
@@ -232,28 +238,40 @@ namespace times
         long long seconds() const { return milliseconds_ / 1000 % 60; }
         long long milliseconds() const { return milliseconds_ % 1000; }
         
-        string format(const string& fmt = "%H:%M:%S.%ms") const {
-            ostringstream oss;
-            for (size_t i = 0; i < fmt.size(); ++i) {
-                if (fmt[i] == '%' && i + 1 < fmt.size()) {
-                    ++i;
-                    switch (fmt[i]) {
-                        case 'H': oss << setw(2) << setfill('0') << hours(); break;
-                        case 'M': oss << setw(2) << setfill('0') << minutes(); break;
-                        case 'S': oss << setw(2) << setfill('0') << seconds(); break;
+        string format(const string& fmt = "%H:%M:%S.%ms") const
+        {
+            string result;
+            for (size_t i = 0; i < fmt.size(); ++ i)
+            {
+                if (fmt[i] == '%' && i + 1 < fmt.size())
+                {
+                    ++ i;
+                    switch (fmt[i])
+                    {
+                        case 'H': result += std::format("{:02d}", hours()); break;
+                        case 'M': result += std::format("{:02d}", minutes()); break;
+                        case 'S': result += std::format("{:02d}", seconds()); break;
                         case 'm': 
-                            if (i + 1 < fmt.size() && fmt[i + 1] == 's') {
-                                ++i;
-                                oss << setw(3) << setfill('0') << milliseconds();
+                            if (i + 1 < fmt.size() && fmt[i + 1] == 's')
+                            {
+                                ++ i;
+                                result += std::format("{:03d}", milliseconds());
                             }
                             break;
-                        default: oss << '%' << fmt[i]; break;
+                        default: result += std::format("%{}", fmt[i]); break;
                     }
-                } else {
-                    oss << fmt[i];
+                }
+                else
+                {
+                    result += fmt[i];
                 }
             }
-            return oss.str();
+            return result;
+        }
+        
+        void print(const string& fmt = "%H:%M:%S.%ms") const
+        {
+            std::print("{}", format(fmt));
         }
     };
 
@@ -274,7 +292,8 @@ namespace times
         
         void stop_timer()
         {
-            if (running) {
+            if (running)
+            {
                 end = high_resolution_clock::now();
                 running = false;
             }
@@ -289,7 +308,8 @@ namespace times
         
         long long elapsed_ms() const
         {
-            if (running) {
+            if (running)
+            {
                 auto now = high_resolution_clock::now();
                 return duration_cast<milliseconds>(now - start).count();
             }
@@ -298,7 +318,8 @@ namespace times
         
         long long elapsed_us() const
         {
-            if (running) {
+            if (running)
+            {
                 auto now = high_resolution_clock::now();
                 return duration_cast<microseconds>(now - start).count();
             }
@@ -307,7 +328,8 @@ namespace times
         
         long long elapsed_ns() const
         {
-            if (running) {
+            if (running)
+            {
                 auto now = high_resolution_clock::now();
                 return duration_cast<nanoseconds>(now - start).count();
             }

@@ -20,10 +20,10 @@ compilerargs_on_windows = {
     6: "cl /EHsc /std:c++latest /O2 /MT /Zc:__cplusplus ikun_error_analyzer.cpp /Fe:ikun_error_analyzer.exe"
 }
 compilerargs_on_linux = {
-    1: "g++ -std=c++26 -O3 -lstdc++exp ikun_core.cpp -o ikun",
-    2: "clang++ -std=c++26 -O3 -lstdc++exp -stdlib=libc++ ikun_core.cpp -o ikun",
-    3: "g++ -std=c++26 -O3 -lstdc++exp ikun_error_analyzer.cpp -o ikun_error_analyzer",
-    4: "clang++ -std=c++26 -O3 -lstdc++exp -stdlib=libc++ ikun_error_analyzer.cpp -o ikun_error_analyzer"
+    1: "g++ -std=c++26 -O3 ikun_core.cpp -o ikun",
+    2: "clang++ -std=c++26 -O3 -stdlib=libc++ ikun_core.cpp -o ikun",
+    3: "g++ -std=c++26 -O3 ikun_error_analyzer.cpp -o ikun_error_analyzer",
+    4: "clang++ -std=c++26 -O3 -stdlib=libc++ ikun_error_analyzer.cpp -o ikun_error_analyzer"
 }
 
 system_env = platform.system()
@@ -58,6 +58,12 @@ match system_env:
         system_status = "Java JVM (Unsupported)"
     case _:
         system_status = "Unknown " + system_arch
+
+def pause():
+    if system_status.startswith("Windows"):
+        system("pause")
+    else:
+        system("read -p \"按任意键继续...\" -n1 -s")
 
 def download_file_from_github_simple(lib_name):
     global system_status
@@ -104,7 +110,7 @@ def build_core():
     global compilerargs_on_windows, compilerargs_on_linux, system_status
     # 检查编译器
     print("检查编译器...")
-    system("pause")
+    pause()
     print("GCC(版本要>= 11):")
     sleep(0.1)
     system("g++ --version") # GCC
@@ -127,7 +133,7 @@ def build_core():
     else:
         print(f"{system_status}不支持MSVC")
     print("将会编译ikun(.exe)(库核心管理器)和ikun_error_analyzer(.exe)(错误分析器)")
-    system("pause")
+    pause()
     
     # 询问用户然后编译
     compiler = int(input("请输入编译器编号(1: GCC, 2: Clang, 3:MSVC): "))
@@ -163,8 +169,7 @@ def main():
     while True:
         print("1. 下载ikun库核心")
         print("2. 编译ikun库管理器")
-        print("3. 配置环境变量")
-        print("4. 退出")
+        print("3. 退出")
 
         choice = input("请输入选项: ")
 
@@ -173,28 +178,6 @@ def main():
         elif choice == "2":
             build_core()
         elif choice == "3":
-            current_path = getcwd()
-            if system_status.startswith("Windows"):
-                print(f"当前路径: {current_path}")
-                print("注意: 在 Windows 上需要管理员权限才能设置系统环境变量")
-                choice = input("设置为用户环境变量(1)还是系统环境变量(2)? [1/2]: ")
-                if choice == "1":
-                    system(f'setx PATH "%PATH%;{current_path}"')
-                elif choice == "2":
-                    system(f'setx PATH "%PATH%;{current_path}" /M')
-                else:
-                    print("无效选择")
-            else:
-                print(f"当前路径: {current_path}")
-                print("注意: 在 macOS 或 Linux 上需要root权限才能设置系统环境变量")
-                choice = input("设置为用户环境变量(1)还是系统环境变量(2)? [1/2]: ")
-                if choice == "1":
-                    system(f'export PATH="$PATH:{current_path}"')
-                elif choice == "2":
-                    system(f'sudo export PATH="$PATH:{current_path}"')
-                else:
-                    print("无效选择")
-        elif choice == "4":
             return 0
         else:
             print(f"无效选项: {choice}")
