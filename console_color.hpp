@@ -15,6 +15,11 @@ namespace color
     constexpr const char* green = "\033[32m";
     constexpr const char* blue = "\033[34m";
     constexpr const char* bold = "\033[1m";
+    constexpr const char* yellow = "\033[33m";
+    constexpr const char* purple = "\033[35m";
+    constexpr const char* cyan = "\033[36m";
+    constexpr const char* white = "\033[37m";
+    constexpr const char* black = "\033[30m";
 }
 
 // 别想多了整个库就这么点

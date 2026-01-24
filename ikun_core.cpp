@@ -4,6 +4,9 @@
 //     Windows: Windows Terminal/PowerShell 5.1+, cmd.exe默认不支持
 //     macOS: 所有
 //     Linux: 所有
+// 版本: 7.1.2 Preview Build 2026.1.24
+// C++版本要求: C++23或更高版本
+// 编译器选项: /std:c++23preview(将来可能变为/std:c++23)或/std:c++latest, -std=c++23
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
@@ -30,7 +33,7 @@
 #define _AMD64_
 #endif
 
-#define IKUN_VERSION "7.1.2"
+#define IKUN_VERSION "7.1.2 Preview Build 2026.1.24"
 #define IKUN_CPP_VERSION_REQUIRED 202302L
 #define IKUN_LANGUAGE_PLATFORM "C++"
 
@@ -63,6 +66,7 @@
 #endif
 
 #include <print>
+#include <format>
 #include <regex>
 #include <iostream>
 #include <filesystem>
@@ -124,6 +128,20 @@ string os_status = // 操作系统信息
 
 namespace ikun_core_cpp
 {
+    int core_get_cppversion() // 获取C++版本
+    {
+        int cppversion = (__cplusplus / 100) % 100;
+        int temp = cppversion % 3;
+
+        if (temp != 2)
+        {
+            if (temp == 1) cppversion += 1;
+            if (temp == 0) cppversion += 2;
+        }
+
+        return cppversion;
+    }
+
     auto getparentdir()
     {
         return fs::path(__FILE__).parent_path().string();
@@ -337,11 +355,12 @@ namespace ikun_core_cpp
 
     void version()
     {
-        println("版本: {}", IKUN_VERSION);
+        int cppversion = core_get_cppversion();
+
         println("编译时使用的编译器: {}", compiler_status);
         println("操作系统: {}", os_status);
         println("编程语言: 编译时使用{}", IKUN_LANGUAGE_PLATFORM);
-        println("- 语言扩展: 编译时使用的C++标准: {}", __cplusplus);
+        println("- 语言扩展: 编译时使用的C++标准: C++{}", cppversion);
         println("提示: 上面的选项只要有一个是Unknown本库就无法正常使用");
     }
 
@@ -359,7 +378,7 @@ namespace ikun_core_cpp
         println("  -ifl, --install-from-local:  从本地ikun库安装副本安装模块(此方法适用于基于ikun库扩展的模块)");
         println("  -u, --uninstall:             卸载指定的模块");
         println("  -c, --check:                 检查指定的模块是否已安装");
-        println("  -bp, --build-project:        构建基于ikun库开发的C++项目(预览版, 目前仅提供快速编译功能)");
+        println("  -cp, --create-project:       创建基于ikun库开发的C++项目");
         println("参数:");
         println("  (-i, -u, -c, --install-from-local) 库名: 指定要安装/卸载/检查的库的名称");
         println("  (--install-from-local) 本地库路径: 指定要安装的本地库的相对/绝对路径(以/作为分隔符, 如D:/workspace/dev/ikun/ikun_core.hpp");
@@ -463,81 +482,121 @@ namespace ikun_core_cpp
         }
     }
 
-    void build_project()
+    bool core_check_file_name(string dir_name) // 检查文件名是否合法
     {
-        println("ikun库构建项目(预览版)");
-        print("请保证ikun库位于项目目录下, 或者指定目录(输入0跳过):");
-        string project_path;
-        getline(cin, project_path);
-        if (project_path == "0")
+        if (dir_name.find_first_of("/\\:*?\"<>|") != string::npos)
         {
-            project_path = "./";
-        }
-        if (!core_fileexists(project_path))
-        {
-            println("{}错误: 路径不存在{}", core_color::red, core_color::reset);
-            return;
+            return false;
         }
 
-        println("请输入使用的编译器: (1: g++, 2: clang++, 3: cl)");
-        int compiler;
-        cin >> compiler;
-        if (compiler < 1 || compiler > 3)
+        return true;
+    }
+
+    bool core_check_dir_name(string dir_name) // 检查目录名是否合法
+    {
+        #ifdef _WIN32
+        if (dir_name.find_first_of("*?\"<>|") != string::npos)
         {
-            println("{}错误: 编译器选项无效{}", core_color::red, core_color::reset);
-            return;
+            return false;
         }
-        #ifndef _WIN32
-            if (compiler == 3)
-            {
-                println("{}错误: cl(MSVC)编译器仅在Windows上可用{}", core_color::red, core_color::reset);
-                return;
-            }
+        #elif defined(__linux__) || defined(__APPLE__)
+        if (dir_name.find_first_of(":*?\"<>|") != string::npos)
         #endif
 
-        print("请输入编译时包括的文件(以空格分隔):");
-        string files;
-        getline(cin, files);
-        print("\n请输入输出文件名(Linux/macOS不输入扩展名, Windows输入.exe)");
-        string output_file;
-        getline(cin, output_file);
-        print("\n请输入是否静态链接: (1: 是, 0: 否)");
-        int is_static;
-        cin >> is_static;
-        if (is_static > 1 || is_static < 0)
+        return true;
+    }
+
+    void create_project()
+    {
+        println("创建基于ikun库开发的C++项目");
+        println("测试版功能, 实现暂不完善, 如出现bug, 请访问 https://github.com/0kunkun0/ikun 并按照README.md的指示进行提交反馈");
+        println("注意: 作为当前版本在preview分支新增的功能, 该功能不受支持, 并可能在未来{}的Release版本发布前受到修改或移除", IKUN_VERSION);
+        println("");
+
+        print("请输入项目名称: ");
+        string project_name;
+        getline(cin, project_name);
+        if (!core_check_file_name(project_name))
         {
-            println("{}错误: 静态链接选项无效{}", core_color::red, core_color::reset);
+            println("{}错误: 项目名称不合法{}", core_color::red, core_color::reset);
             return;
         }
 
-        string command;
-        string static_;
-        if (is_static) static_ = "-static ";
-        else static_ = "";
-        if (compiler == 1)
+        print("\n请输入项目路径: ");
+        string project_path;
+        getline(cin, project_path);
+        println("");
+        if (!core_check_dir_name(project_path))
         {
-            command = "g++ -std=c++26 -O3 -lstdc++exp " + static_ + files + " -o " + output_file;
+            println("{}错误: 项目路径不合法{}", core_color::red, core_color::reset);
+            return;
         }
-        else if (compiler == 2)
+
+        string md = "mkdir " + project_path + "\\" + project_name;
+        vector<string> dirs = {"\\src", "\\include", "\\build", "\\include\\ikun"};
+        for (string dir : dirs)
         {
-            command = "clang++ -std=c++26 -O3 -lstdc++exp -stdlib=libc++ " + files + " -o " + output_file;
+            string cmd = md + dir;
+            println("\n执行操作{}", cmd);
+            system(cmd.c_str());
         }
-        else if (compiler == 3)
-        {
-            if (is_static) static_ = "/MT ";
-            else static_ = "/MD ";
-            command = "cl /EHsc /std:c++latest /nologo /O2 /MT /Zc:__cplusplus " + static_ + files + " /Fe:" + output_file;
-        }
-        command += " > ./build.log 2>&1"; // 将编译日志输出到build.log文件中
-        println("\n\n选项处理完成, 正在启动编译...");
-        if (system(command.c_str()) == 0)
-        {
-            println("{}编译成功{}", core_color::green, core_color::reset);
-        }
-        else
-        {
-            println("\n{}编译失败, 错误原因已输出在当前目录的build.log文件{}", core_color::red, core_color::reset);
-        }
+
+        #ifdef _WIN32
+        println("如有提示询问是文件名还是目录名, 请选择目录名(D)");
+        string cmd = "xcopy *.hpp " + project_path + "\\" + project_name + "\\include\\ikun/";
+        string cmd1 = "xcopy *.cpp " + project_path + "\\" + project_name + "\\include\\ikun/";
+        string cmd2 = "xcopy ikun.exe " + project_path + "\\" + project_name + "\\include\\ikun/";
+        string cmd3 = "xcopy ikun_error_analyzer.exe" + project_path + "\\" + project_name + "\\include\\ikun/";
+        #elif defined(__linux__) || defined(__APPLE__)
+        string cmd = "cp *.hpp " + project_path + "/" + project_name + "/include/ikun/";
+        string cmd1 = "cp *.cpp " + project_path + "/" + project_name + "/include/ikun/";
+        string cmd2 = "cp ikun " + project_path + "/" + project_name + "/include/ikun/";
+        string cmd3 = "cp ikun_error_analyzer " + project_path + "/" + project_name + "/include/ikun/";
+        #else
+        throw_re("不支持的平台",
+        "ikun(.exe)", "create_project, in line" + to_string(__LINE__), "core_error 006"
+        );
+        #endif
+        
+        println("正在执行命令: {}", cmd);
+        println("正在执行命令: {}", cmd1);
+        println("正在执行命令: {}", cmd2);
+        println("正在执行命令: {}", cmd3);
+
+        system(cmd.c_str());
+        system(cmd1.c_str());
+        system(cmd2.c_str());
+        system(cmd3.c_str());
+
+        string main_cpp_content =
+R"(#include "ikun/all_libs.hpp"
+int main()
+{
+    println("Hello, World!");
+    return 0;
+})";
+
+        println("正在创建main.cpp...");
+        ofstream main_cpp(project_path + "\\" + project_name + "\\src\\main.cpp");
+        main_cpp << main_cpp_content;
+        main_cpp.close();
+        println("创建完成, 详见{}", project_path + "\\" + project_name + "\\src\\main.cpp");
+
+        string cmakelist_txt_content = format(
+R"(cmake_minimum_required(VERSION 3.10)
+project({})
+
+set(CMAKE_CXX_STANDARD 23)
+
+include_directories(include)
+
+add_executable({} main.cpp))", project_name, project_name); // 现代C++神力, 此处羡慕Python的f-string, Swift的\()字符串插值和C#的${}字符串插值
+        ofstream cmakelist_txt(project_path + "\\" + project_name + "\\CMakeLists.txt");
+        cmakelist_txt << cmakelist_txt_content;
+        cmakelist_txt.close();
+        println("创建CMakeLists.txt成功, 详见{}", project_path + "\\" + project_name + "\\CMakeLists.txt");
+
+        println("{}项目创建成功{}", core_color::green, core_color::reset);
     }
 }
 
@@ -545,6 +604,7 @@ int main(int argc, char* argv[])
 {
     using namespace ikun_core_cpp;
     println("ikun库核心管理器");
+    println("版本: {}", IKUN_VERSION);
 
     if (!core_fileexists("libs_download_url.txt"))
     {
@@ -651,9 +711,9 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
-        else if (arg == "-bp" || arg == "--build-project")
+        else if (arg == "-cp" || arg == "--create-project")
         {
-            build_project();
+            create_project();
         }
         else
         {

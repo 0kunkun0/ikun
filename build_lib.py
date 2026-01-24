@@ -143,9 +143,9 @@ def build_core():
             system(compilerargs_on_linux[compiler])
             system(compilerargs_on_linux[compiler + 2])
         if compiler == 3:
-            # MSVC编译后需要清理未链接可执行文件和中间文件
+            # MSVC编译后需要清理未链接可执行文件
+            print("清理未链接可执行文件...")
             system("del *.obj")
-            system("del *.ilk")
     else:
         print("编译器名称错误")
         return 1

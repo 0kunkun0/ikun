@@ -46,7 +46,25 @@ namespace ikun_input
      * @param output 输出提示信息, 默认为空字符串
      * @return 输入的数据
      */
-    string input(string output = "")
+    template <typename T>
+    T input(string output = "")
+    {
+        T i;
+        if (!output.empty())
+        {
+            println("{}", output);
+        }
+        cin >> i;
+        return i;
+    }
+
+    /**
+     * @brief 从标准输入获取数据
+     * @param output 输出提示信息, 默认为空字符串
+     * @return 输入的数据
+     */
+    template <>
+    string input<string>(string output)
     {
         string i;
         if (!output.empty())

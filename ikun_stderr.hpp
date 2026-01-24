@@ -1,5 +1,6 @@
 // ikun库错误信息库ikun_stderr.hpp
 // 用于为库中的其它头文件提供错误信息
+// 版本7.1.2 Preview Build 2026.1.24
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
@@ -8,16 +9,6 @@
 
 #ifndef IKUN_STDERR_HPP
 #define IKUN_STDERR_HPP
-
-#ifdef _WIN32
-    #ifndef WIN32_LEAD_AND_MEAN
-    #define WIN32_LEAD_AND_MEAN
-    #endif
-
-    #ifndef NOMINMAX
-    #define NOMINMAX
-    #endif
-#endif
 
 #include <iostream>
 #include <print>
@@ -37,6 +28,9 @@ namespace ikun_error
     using std::println;
     using std::string;
     using std::runtime_error;
+    using std::overflow_error;
+    using std::out_of_range;
+    using std::logic_error;
     using std::ofstream;
     using std::to_string;
     using std::cout;
@@ -72,7 +66,8 @@ namespace ikun_error
             "    In function " + where_func + ":\n"
             "        " + string(ikun_error::red) + "Invalid Argument Error: " + error_info + "\n" + string(ikun_error::reset) +
             "If you are the developer, please check your code.\n"
-            "If you are the user, please report this error to the developer, but you shouldn't see this error because it's a code error.\n";
+            "If you are the user, please report this error to the developer, but you shouldn't see this error because it's a code error.\n"
+            + string(ikun_error::red) + "Error Code: " + err_code + "\n" + string(ikun_error::reset);
         ofstream error_log = ofstream("ikun_error.log");
         error_log << output_err_info;
         error_log.close();
@@ -80,6 +75,64 @@ namespace ikun_error
         cout.flush();
         cerr.flush();
         throw runtime_error(output_err_info);
+    }
+
+    void throw_out_of_range(string error_info, string where_lib, string where_func, string err_code) // 抛出越界错误
+    {
+        string output_err_info = 
+            string(ikun_error::red) + "ikun lib Range Error!\n"
+            "Traceback(most recent call last):\n" + string(ikun_error::reset) +
+            "From library" + where_lib + ":\n"
+            "    In function " + where_func + ":\n"
+            "        " + string(ikun_error::red) + "Range Error: " + error_info + "\n" + string(ikun_error::reset) +
+            "If you are the developer, please check your code.\n"
+            "If you are the user, please report this error to the developer.\n"
+            + string(ikun_error::red) + "Error Code: " + err_code + "\n" + string(ikun_error::reset);
+        ofstream error_log = ofstream("ikun_error.log");
+        error_log << output_err_info;
+        error_log.close();
+        println("{}\nLog file ikun_error.log has been created in the current directory.", output_err_info);
+        cout.flush();
+        cerr.flush();
+        throw out_of_range(output_err_info);
+    }
+
+    void throw_stack_overflow(string error_info, string where_lib, string where_func, string err_code) // 抛出栈溢出错误
+    {
+        string output_err_info = 
+            string(ikun_error::red) + "ikun lib Stack Overflow Error!\n"
+            "Traceback(most recent call last):\n" + string(ikun_error::reset) +
+            "From library" + where_lib + ":\n"
+            "    In function " + where_func + ":\n"
+            "        " + string(ikun_error::red) + "Stack Overflow Error: " + error_info + "\n" + string(ikun_error::reset) +
+            "If you are the developer, please check your code.\n"
+            "If you are the user, please report this error to the developer.\n"
+            + string(ikun_error::red) + "Error Code: " + err_code + "\n" + string(ikun_error::reset);
+        ofstream error_log = ofstream("ikun_error.log");
+        error_log << output_err_info;
+        error_log.close();
+        println("{}\nLog file ikun_error.log has been created in the current directory.", output_err_info);
+        cout.flush();
+        cerr.flush();
+        throw overflow_error(output_err_info);
+    }
+
+    void throw_logic_error(string error_info, string where_lib, string where_func, string err_code) // 抛出逻辑错误
+    {
+        string output_err_info = 
+            string(ikun_error::red) + "ikun lib Logic Error!\n"
+            "Traceback(most recent call last):\n" + string(ikun_error::reset) +
+            "From library" + where_lib + ":\n"
+            "    In function " + where_func + ":\n"
+            "        " + string(ikun_error::red) + "Logic Error: " + error_info + "\n" + string(ikun_error::reset) +
+            "Please check your code.\n";
+        ofstream error_log = ofstream("ikun_error.log");
+        error_log << output_err_info;
+        error_log.close();
+        println("{}\nLog file ikun_error.log has been created in the current directory.", output_err_info);
+        cout.flush();
+        cerr.flush();
+        throw logic_error(output_err_info);
     }
 }
 

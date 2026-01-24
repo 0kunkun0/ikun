@@ -8,6 +8,9 @@ ikun/
 
 推荐的一些库:
     functions.hpp   // 一些实用函数
+    times.hpp       // 时间相关功能
+    math.hpp        // 数学相关功能
+    random.hpp      // 随机数相关功能
     all_libs.hpp    // 包含所有库的头文件
     high_precision_digit.hpp
                     // 高精度数字相关功能
@@ -43,3 +46,4 @@ ikun库错误分析(可直接用于AI或发送给开发者, 详见ikun_error_ana
         003: 无法启用git稀疏检出
         004: 无法创建git稀疏检出文件
         005: 无法通过git拉取文件
+        006: 创建项目时不支持目标平台
