@@ -4,7 +4,7 @@
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
+// 遵循GPL 3.0许可证, 禁止使用本库进行闭源用途
 
 #include <print>
 #include <iostream>
@@ -119,6 +119,22 @@ void ikun_hpd_error_analyzer(int error_code) // 高精度整数库错误分析�
             "  原因: 在使用high_precision_digit.hpp的fac()函数时, 提供的数为负数\n"
             "  解决方案: \n"
             "    不要对负数求阶乘\n";
+            break;
+        case 7:
+            error_message =
+            "分析结果: \n"
+            "  类型: 数值超出范围\n"
+            "  原因: 在使用high_precision_digit.hpp的to_long_long()函数时, 提供的数超过了long long的范围\n"
+            "  解决方案: \n"
+            "    确保提供的数在long long范围内(-9223372036854775808 ~ 9223372036854775807)\n";
+            break;
+        case 8:
+            error_message =
+            "分析结果: \n"
+            "  类型: 数值超出范围\n"
+            "  原因: 在使用high_precision_digit.hpp的to_int()函数时, 提供的数超过了int的范围\n"
+            "  解决方案: \n"
+            "    确保提供的数在int范围内(-2147483648 ~ 2147483647)\n";
             break;
         default:
             error_message = default_message;
@@ -240,7 +256,7 @@ void core_error_analyzer(int error_code) // 库管理程序错误
     print_error(error_message);
 }
 
-void ikun_maths_error_analyzer(int error_code)
+void ikun_maths_error_analyzer(int error_code) // 数学库错误
 {
     string error_message;
     switch (error_code)
@@ -261,11 +277,40 @@ void ikun_maths_error_analyzer(int error_code)
     print_error(error_message);
 }
 
+void ikun_random_error_analyzer(int error_code)
+{
+    string error_message;
+    switch (error_code)
+    {
+        case 1:
+            error_message =
+            "分析结果: \n"
+            "  类型: 参数不合法\n"
+            "  原因: 在使用random.hpp库的Random::random_int()或Random::random_double()函数时, 提供的min超过了max\n"
+            "  解决方案: \n"
+            "    确保min小于等于max\n";
+            break;
+        case 2:
+            error_message =
+            "分析结果: \n"
+            "  类型: 参数不合法\n"
+            "  原因: 在使用random.hpp库的Random::random_string()函数时, 提供的长度为负数\n"
+            "  解决方案: \n"
+            "    确保长度大于等于0\n";
+            break;
+        default:
+            error_message = default_message;
+            break;
+    }
+
+    print_error(error_message);
+}
+
 int main()
 {
     println("-------------------------------");
     println("ikun库错误分析器");
-    println("版本: 7.1.2 Preview Build 2026.1.24");
+    println("版本: 7.1.2 Release Candidate");
     println("-------------------------------");
     println("如何获取错误代码:");
     println("  1. 在使用ikun库开发的程序中, 当出现错误时, 程序会输出错误代码到控制台和ikun_error.txt文件中");

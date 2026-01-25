@@ -6,7 +6,7 @@
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
+// 遵循GPL 3.0许可证, 禁止使用本库进行闭源用途
 
 #if __has_include("all_libs.hpp")
 #include "all_libs.hpp"
@@ -147,13 +147,14 @@ void test_maths()
 #ifdef IKUN_RANDOM_HPP
 void test_random()
 {
+    Random r;
     println("\nrandom.hpp测试:");
     println("注意: 本测试没有标准答案, 请自行判断是否正确");
     println("随机数生成器测试");
-    println("1~3随机数:            {}", random_int(1, 3));
-    println("78~7891随机数:        {}", random_int(78, 7891));
-    println("随机可显示ASCII字符:   {}", random_char());
-    println("随机字符串(长度为10):  {}", random_string(10));
+    println("1~3随机数:            {}", r.random_int(1, 3));
+    println("78~7891随机数:        {}", r.random_int(78, 7891));
+    println("随机可显示ASCII字符:   {}", r.random_char());
+    println("随机字符串(长度为10):  {}", r.random_string(10));
 
     println("随机数生成器测试通过");
 }

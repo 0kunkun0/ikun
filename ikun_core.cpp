@@ -4,14 +4,14 @@
 //     Windows: Windows Terminal/PowerShell 5.1+, cmd.exe默认不支持
 //     macOS: 所有
 //     Linux: 所有
-// 版本: 7.1.2 Preview Build 2026.1.24
-// C++版本要求: C++23或更高版本
+// 版本: 7.1.2 Release Candidate
+// C++版本要求: C++23或更高版本, 否则将无法使用print和#elifdef
 // 编译器选项: /std:c++23preview(将来可能变为/std:c++23)或/std:c++latest, -std=c++23
 
 // 本库开源GitHub地址: https://github.com/0kunkun0/ikun
 // 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据GPL 3.0许可证规定, 禁止使用本库进行闭源用途
+// 遵循GPL 3.0许可证, 禁止使用本库进行闭源用途
 
 /*
 库结构:
@@ -26,14 +26,14 @@
     build_lib.py    // 管理脚本
     
     别的内容请访问 https://github.com/0kunkun0/ikun
-    或者查看库中的 说明.txt
+    或者查看库中的 发行说明.md
 */
 
 #ifdef _MSC_VER
 #define _AMD64_
 #endif
 
-#define IKUN_VERSION "7.1.2 Preview Build 2026.1.24"
+#define IKUN_VERSION "7.1.2 Release Candidate"
 #define IKUN_CPP_VERSION_REQUIRED 202302L
 #define IKUN_LANGUAGE_PLATFORM "C++"
 
@@ -46,11 +46,12 @@
 #endif
 
 #ifdef MSVC // 处理MSVC上__cplusplus宏的问题
-    #undef __cplusplus // 取消定义
-    #define __cplusplus _MSVC_LANG // MSVC上需要用_MSVC_LANG宏来代替, 此处为了兼容性重新定义__cplusplus
+    #define CPPVER _MSVC_LANG // MSVC上需要用_MSVC_LANG宏来代替
+#else
+    #define CPPVER __cplusplus // 其他编译器上直接使用__cplusplus宏
 #endif
 
-#if __cplusplus < IKUN_CPP_VERSION_REQUIRED // 判断C++版本
+#if CPPVER < IKUN_CPP_VERSION_REQUIRED // 判断C++版本
     #error "此版本的ikun库需要C++23或更高版本"
     #error "请在编译时指定最低-std=c++23或/std:c++23"
 #endif
@@ -126,21 +127,21 @@ string os_status = // 操作系统信息
 #endif
 ;
 
-string tips =
+string tips = format(
 #ifdef _WIN64
-"请保证使用的终端为Windows Terminal和PowerShell 5.1+, cmd.exe可能无法显示ANSI转义序列(即带颜色的字符)"
+"{}请保证使用的终端为Windows Terminal和PowerShell 5.1+, cmd.exe可能无法显示ANSI转义序列(即带颜色的字符){}"
 #elifdef __linux__
-"请注意: ikun库在Linux下的支持为实验性, 由于作者懒得制作Linux虚拟机, 测试均在WSL2下测试, 可能会有各种bug"
+"{}请注意: ikun库在Linux下的支持为实验性, 由于作者懒得制作Linux虚拟机, 测试均在WSL2下测试, 可能会有各种bug{}"
 #elifdef __APPLE__
-"请注意: ikun库在macOS的支持不完整, 由于作者没有Mac设备, 操作系统API相关特性均使用POSIX兼容性实现, 某些极端情况可能无法正常使用"
+"{}请注意: ikun库在macOS的支持不完整, 由于作者没有Mac设备, 操作系统API相关特性均使用POSIX兼容性实现, 某些极端情况可能无法正常使用{}"
 #endif
-;
+, core_color::bold, core_color::reset);
 
 namespace ikun_core_cpp
 {
     int core_get_cppversion() // 获取C++版本
     {
-        int cppversion = (__cplusplus / 100) % 100;
+        int cppversion = (CPPVER / 100) % 100;
         int temp = cppversion % 3;
 
         if (temp != 2)
@@ -395,7 +396,8 @@ namespace ikun_core_cpp
         println("  -cp, --create-project:       创建基于ikun库开发的C++项目");
         println("参数:");
         println("  (-i, -u, -c, --install-from-local) 库名: 指定要安装/卸载/检查的库的名称");
-        println("  (--install-from-local) 本地库路径: 指定要安装的本地库的相对/绝对路径(以/作为分隔符, 如D:/workspace/dev/ikun/ikun_core.hpp");
+        println("  (--install-from-local) 本地库路径: 指定要安装的本地库的相对/绝对路径\n    (以/作为分隔符, 如D:/workspace/dev/ikun/ikun_core.hpp");
+        println("    备注: -ifl选项格式为 ikun -ifl [库名] [本地库路径]");
     }
 
     void core_list_libs()
@@ -636,13 +638,6 @@ int main(int argc, char* argv[])
     println("版本: {}", IKUN_VERSION);
     println("{}", tips);
 
-    if (!core_fileexists("libs_download_url.txt"))
-    {
-        ofstream file("libs_download_url.txt"); // 创建日志文件
-        file << "https://github.com/0kunkun0/ikun.git";
-        file.close();
-    }
-
     if (argc < 2)
     {
         println("{}关键错误: 未传递选项{}", core_color::red, core_color::reset);
@@ -679,7 +674,7 @@ int main(int argc, char* argv[])
             if (i + 1 < argc)
             {
                 install(argv[i + 1]);
-                i ++;
+                return 0;
             }
             else
             {
@@ -694,13 +689,14 @@ int main(int argc, char* argv[])
             {
                 install(argv[i + 1], true);
             }
+            return 0;
         }
         else if (arg == "-u" || arg == "--uninstall")
         {
             if (i + 1 < argc)
             {
                 uninstall(argv[i + 1]);
-                i ++;
+                return 0;
             }
             else
             {
@@ -720,7 +716,7 @@ int main(int argc, char* argv[])
                 {
                     println("{} 模块未安装或不存在", argv[i + 1]);
                 }
-                i ++;
+                return 0;
             }
             else
             {
@@ -733,7 +729,7 @@ int main(int argc, char* argv[])
             if (i + 2 < argc)
             {
                 install_from_local(argv[i + 1], argv[i + 2]);
-                i += 2;
+                return 0;
             }
             else
             {
@@ -745,6 +741,7 @@ int main(int argc, char* argv[])
         else if (arg == "-cp" || arg == "--create-project")
         {
             create_project();
+            return 0;
         }
         else
         {

@@ -12,18 +12,18 @@ import platform
 
 ikun_path = getcwd()
 compilerargs_on_windows = {
-    1: "g++ -std=c++26 -O3 -lstdc++exp ikun_core.cpp -o ikun.exe",
-    2: "clang++ -std=c++26 -O3 -lstdc++exp -stdlib=libc++ ikun_core.cpp -o ikun.exe",
+    1: "g++ -std=c++23 -O3 -lstdc++exp ikun_core.cpp -o ikun.exe",
+    2: "clang++ -std=c++23 -O3 -lstdc++exp -stdlib=libc++ ikun_core.cpp -o ikun.exe",
     3: "cl /EHsc /std:c++latest /O2 /MT /Zc:__cplusplus ikun_core.cpp /Fe:ikun.exe",
-    4: "g++ -std=c++26 -O3 -lstdc++exp ikun_error_analyzer.cpp -o ikun_error_analyzer.exe",
-    5: "clang++ -std=c++26 -O3 -lstdc++exp -stdlib=libc++ ikun_error_analyzer.cpp -o ikun_error_analyzer.exe",
+    4: "g++ -std=c++23 -O3 -lstdc++exp ikun_error_analyzer.cpp -o ikun_error_analyzer.exe",
+    5: "clang++ -std=c++23 -O3 -lstdc++exp -stdlib=libc++ ikun_error_analyzer.cpp -o ikun_error_analyzer.exe",
     6: "cl /EHsc /std:c++latest /O2 /MT /Zc:__cplusplus ikun_error_analyzer.cpp /Fe:ikun_error_analyzer.exe"
 }
 compilerargs_on_linux = {
-    1: "g++ -std=c++26 -O3 ikun_core.cpp -o ikun",
-    2: "clang++ -std=c++26 -O3 -stdlib=libc++ ikun_core.cpp -o ikun",
-    3: "g++ -std=c++26 -O3 ikun_error_analyzer.cpp -o ikun_error_analyzer",
-    4: "clang++ -std=c++26 -O3 -stdlib=libc++ ikun_error_analyzer.cpp -o ikun_error_analyzer"
+    1: "g++ -std=c++23 -O3 ikun_core.cpp -o ikun",
+    2: "clang++ -std=c++23 -O3 -stdlib=libc++ ikun_core.cpp -o ikun",
+    3: "g++ -std=c++23 -O3 ikun_error_analyzer.cpp -o ikun_error_analyzer",
+    4: "clang++ -std=c++23 -O3 -stdlib=libc++ ikun_error_analyzer.cpp -o ikun_error_analyzer"
 }
 
 system_env = platform.system()
