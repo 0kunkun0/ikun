@@ -2,8 +2,11 @@
 // 类似于libstdc++的bits/stdc++.h, 但通过预处理器指令实现了更多的控制, 而且去掉了很多不必要的头文件
 // 对比更适用于竞赛的bits/stdc++.h, 本头文件适用于任何用途
 // 包括但不限于开发, 竞赛编程, 快速原型测试等
+
+// 本库开源GitHub地址: https://github.com/0kunkun0/ikun
+// 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据许可证和用户协议规定, 禁止商业用途, 违者依法追究法律责任
+// 遵循GPL 3.0许可证, 禁止使用本库进行闭源用途
 
 #ifndef IKUN_STDCPPLIB_HPP
 #define IKUN_STDCPPLIB_HPP
