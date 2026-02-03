@@ -2,11 +2,20 @@
 // 类似于libstdc++的bits/stdc++.h, 但通过预处理器指令实现了更多的控制, 而且去掉了很多不必要的头文件
 // 对比更适用于竞赛的bits/stdc++.h, 本头文件适用于任何用途
 // 包括但不限于开发, 竞赛编程, 快速原型测试等
+
+// 本库开源GitHub地址: https://github.com/0kunkun0/ikun
+// 下载本库开源完整版: git clone https://github.com/0kunkun0/ikun.git
 // 仅供个人, 非营利性组织, 开源项目以及竞赛使用
-// 根据许可证和用户协议规定, 禁止商业用途, 违者依法追究法律责任
+// 遵循GPL 3.0许可证, 禁止使用本库进行闭源用途
 
 #ifndef IKUN_STDCPPLIB_HPP
 #define IKUN_STDCPPLIB_HPP
+
+#ifdef _MSC_VER
+#define STDCPPLIB_CPPVERSION _MSVC_LANG
+#else
+#define STDCPPLIB_CPPVERSION __cplusplus
+#endif
 
 // 最小化的库包含
 
@@ -28,10 +37,10 @@
 
 #ifndef DISABLE_UNESSENTIAL_C_HEADER
 
-    #include <cstring> // string
-    #include <cstdio> // iostream + 禁用缓冲区同步
-                    // 或者format, print, fstream, filesystem
-    #include <ctime> // chrono
+    #include <cstring>// string
+    #include <cstdio> // iostream + 禁用缓冲区同步 + 不用endl换行
+                      // 或者format, print, fstream, filesystem
+    #include <ctime>  // chrono
 
 #endif
 
@@ -72,7 +81,7 @@
 #include <memory>
 
 // C++17 特性检测
-#if __cplusplus >= 201703L
+#if STDCPPLIB_CPPVERSION >= 201703L
     #include <filesystem>
     using namespace std::filesystem;
 #elif defined(_WIN32) && !defined(__MINGW32__)
@@ -84,13 +93,14 @@
 #endif
 
 // C++20 特性检测
-#if __cplusplus >= 202002L
+#if STDCPPLIB_CPPVERSION >= 202002L
     #include <format>
 #endif
 
 // C++23 特性检测
-#if __cplusplus >= 202302L 
+#if STDCPPLIB_CPPVERSION >= 202302L 
     #include <print>
+    #include <ranges>
 #endif
 
 #endif // MIN_HEADER_INCLUDE
